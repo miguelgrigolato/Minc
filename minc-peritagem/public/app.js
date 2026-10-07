@@ -1,8 +1,8 @@
 'use strict';
-/* MINC · Peritagem — v5.5.0
+/* MINC · Peritagem — v5.6.0
    Organização: utilitários → Store (IndexedDB) → Fotos → Auth → Regras (validação) → Telas → Ações/eventos → Boot */
 
-const APP_VERSION='5.5.0';
+const APP_VERSION='5.6.0';
 
 /* ============================== Utilitários ============================== */
 const $=(s,r=document)=>r.querySelector(s);
@@ -205,7 +205,7 @@ const FORM=CATALOGO.FORM||{titulo:'DOCUMENTO DE EXECUÇÃO DE PERITAGEM E SERVI�
 const PROV=CATALOGO.PROVIDENCIAS||['Fabricar','Recuperar','Reutilizar','Substituir'];
 const COM_MAT=CATALOGO.COM_MATERIAIS||['Fabricar','Substituir'];
 const ITENS_COMUNS=CATALOGO.ITENS_COMUNS||[],EMB_PADRAO=CATALOGO.EMBALAGEM_PADRAO||[];
-const VEDACAO=['Metal x Metal','Resiliente'],ACIONAMENTO=['Atuador Eletromecânico','Atuador Hidráulico','Atuador Pneumático','Manual','Motor','Sem Acionamento'];
+const VEDACAO=['Metal x Metal','Resiliente','Não aplicável'],ACIONAMENTO=['Atuador Eletromecânico','Atuador Hidráulico','Atuador Pneumático','Manual','Motor','Sem Acionamento'];
 const withLegacy=(list,val)=>(emp(val)||list.includes(val))?list:[...list,val];   // preserva um valor antigo que não está mais na lista (ex.: "Alavanca")
 const EMB=['Padrão MINC','Específica'],UNITS=['pç','un','kg','m','mm','cm','m²','m³','L'],PUN=['bar','kgf/cm²','MPa','psi'],MEIOS=['Hidrostático','Pneumático'];
 
@@ -337,17 +337,24 @@ const sameServ=(x,sv)=>!!x.serviceId&&(x.serviceId===sv.id||x.nome===sv.name);
 /* ============================== Regras de validação ============================== */
 function pErr(lbl,v,u){if(emp(v)||!(num(v)>0))return lbl+' — pressão';if(!u)return lbl+' — unidade da pressão';return null}
 const precisaMat=c=>c.acoes.some(a=>COM_MAT.includes(a));
+/* folha visível: serviço em qualquer providência; matéria-prima só em Fabricar/Substituir.
+   Matéria-prima de um item que mudou de providência fica guardada (não é apagada) e volta ao escolher Fabricar/Substituir. */
+const leafOn=(c,m)=>m.tipo==='serv'||precisaMat(c);
+const visLeaves=c=>c.materials.filter(m=>leafOn(c,m));
+const hiddenMp=c=>c.materials.filter(m=>!leafOn(c,m)).length;
+const matsTitle=ls=>ls.every(m=>m.tipo==='serv')?'Serviços':ls.some(m=>m.tipo==='serv')?'Materiais e serviços a comprar':'Materiais a comprar';
 function compIssues(c,no){
   const p='Componente '+no+' — ',e=[];
   const serv=c.acoes.includes('Serviço externo');
   if(emp(c.name))e.push(p+'Nome / descrição');
   if(!c.noDrawing&&emp(c.drawing))e.push(p+'Número do desenho (ou escolha "Sem desenho")');
-  if(!c.acoes.length)e.push(p+'escolha ao menos uma providência');
-  if(precisaMat(c)){let nmp=0,nsv=0;c.materials.forEach(m=>{const sv=m.tipo==='serv',q=p+(sv?'Serviço '+(++nsv):'Matéria-prima '+(++nmp))+' — ';
+  if(!c.acoes.length)e.push(p+'escolha a providência');
+  else if(c.acoes.length>1)e.push(p+'escolha só uma providência (item antigo com '+c.acoes.length+')');
+  {let nmp=0,nsv=0;visLeaves(c).forEach(m=>{const sv=m.tipo==='serv',q=p+(sv?'Serviço '+(++nsv):'Matéria-prima '+(++nmp))+' — ';
     if(emp(m.raw))e.push(q+(sv?'Serviço':'Matéria-prima'));if(!sv&&emp(m.material))e.push(q+'Material');if(emp(m.unit))e.push(q+'Unidade');if(!(num(m.qty)>0))e.push(q+'Quantidade')})}
   const acts=c.atividades.filter(a=>a.actId||!emp(a.t));
   // Fabricar/Substituir: as atividades são definidas pela Engenharia de Processos, então não são exigidas aqui
-  if(!acts.length&&!precisaMat(c)&&!(serv&&c.servicos.length))e.push(p+'adicione ao menos uma atividade'+(serv?' ou serviço externo':''));
+  if(!acts.length&&!precisaMat(c)&&!(serv&&c.servicos.length)&&!visLeaves(c).length)e.push(p+'adicione ao menos uma atividade ou serviço');
   c.atividades.forEach((a,j)=>{
     if(a.actId){if(a.reqDetail&&emp(a.detail))e.push(`${p}Atividade ${j+1} — informe o detalhe de "${a.act}"`)}
     else if(emp(a.t))e.push(p+'há atividade em branco');
@@ -549,7 +556,7 @@ function vProcess(){
   return `<div class="ph"><h1>Informações do processo</h1><p>Identificação, dados do documento, dados técnicos e fotos do equipamento ainda montado.</p></div>
 <div class="panel"><h2>Identificação</h2><p class="hint pasta-note">${r.pasta?`Pasta na nuvem: <code>${esc(r.pasta)}</code>`:'A pasta deste processo na nuvem (Processo + Pedido + Equipamento + Cliente) é criada quando esses quatro campos estiverem preenchidos.'}</p><div class="grid g3">${fld('Processo','process',r.process)}${fld('Pedido','pedido',r.pedido)}${fld('Ordem <span class="muted">(opcional)</span>','ordem',r.ordem)}${fld('Equipamento','equipamento',r.equipamento)}${fld('Cliente','cliente',r.cliente)}<div class="field"><span class="lbl" id="l-status">Status</span><div class="seg" role="radiogroup" aria-labelledby="l-status">${STATUS.map(s=>`<button type="button" class="seg-b ${r.status===s?'on':''}" role="radio" aria-checked="${r.status===s}" data-act="status" data-v="${s}" data-fk="st-${s}"><i class="dot ${stCls[s]}"></i>${s}</button>`).join('')}</div></div></div><div class="field"><label for="f-observacoes">Observações <span class="muted">(opcional)</span></label><textarea id="f-observacoes" data-inp="p" data-k="observacoes">${esc(r.observacoes)}</textarea></div></div>
 <div class="panel"><h2>Documento de execução</h2><p class="hint">Cabeçalho e assinaturas do formulário ${esc(FORM.codigo)}. Todos os campos são opcionais.</p><div class="grid g3">${fldS('p','nomus','Peritagem Nomus',r.nomus)}${fldS('p','dataDoc','Data do documento',r.dataDoc,{type:'date'})}${fldS('p','revisao','Revisão',r.revisao)}</div>${fldS('p','motivoRevisao','Motivo da revisão',r.motivoRevisao)}<div class="grid g4">${fldS('p','elaboradoPor','Elaborado por',r.elaboradoPor)}${fldS('p','elaboradoData','Data da elaboração',r.elaboradoData,{type:'date'})}${fldS('p','aprovadoPor','Aprovado por',r.aprovadoPor)}${fldS('p','aprovadoData','Data da aprovação',r.aprovadoData,{type:'date'})}</div></div>
-<div class="panel"><h2>Informações técnicas</h2><div class="field"><span class="lbl">Tipo de vedação</span>${rcards(VEDACAO,r.vedacao,'set','data-k="vedacao"','g2')}</div><div class="field"><span class="lbl">Acionamento</span>${rcards(withLegacy(ACIONAMENTO,r.acionamento),r.acionamento,'set','data-k="acionamento"','g4')}</div><div class="grid g3">${fld('Fluido de trabalho <span class="muted">(opcional)</span>','fluido',r.fluido)}</div></div>
+<div class="panel"><h2>Informações técnicas</h2><div class="field"><span class="lbl">Tipo de vedação</span>${rcards(VEDACAO,r.vedacao,'set','data-k="vedacao"','g3')}</div><div class="field"><span class="lbl">Acionamento</span>${rcards(withLegacy(ACIONAMENTO,r.acionamento),r.acionamento,'set','data-k="acionamento"','g4')}</div><div class="grid g3">${fld('Fluido de trabalho <span class="muted">(opcional)</span>','fluido',r.fluido)}</div></div>
 <div class="panel"><h2>Dados da plaqueta de identificação</h2><p class="hint">Opcional. Preencha o que será gravado na plaqueta; só o que for informado aparece no documento.</p><div class="grid g4">${fldS('plaq','tipo','Equipamento',q.tipo)}${fldS('plaq','dn','DN',q.dn,{keep:true})}${fldS('plaq','os','O.S.',q.os)}${fldS('plaq','tag','TAG',q.tag)}</div><div class="grid g4">${fldS('plaq','data','Data do reparo',q.data,{type:'date'})}</div></div>
 <div class="panel"><div class="ph-bar"><div><h2 style="margin:0">Imagens do equipamento</h2><span class="ph-count">${r.equipmentPhotos.length} de 4 fotos recomendadas, com o equipamento ainda montado. ${r.anexos.length?`${r.anexos.length} anexo(s).`:'Use “Anexos” para PDF e outros arquivos.'}</span></div>${photoBtns('equip')}</div>${photoGrid(r.equipmentPhotos,'equip')}${anexList(r.anexos,'equip')}</div>`;
 }
@@ -571,14 +578,14 @@ function compHead(c,no,open){
 }
 function provCards(c){
   const legacy=c.acoes.filter(a=>!PROV.includes(a));   // opções descontinuadas (ex.: Retrofit) em itens antigos
-  return `<div class="rgroup g3${S.errs&&!c.acoes.length?' invalid-group':''}" role="group" aria-label="Providência">${PROV.map(k=>{const on=c.acoes.includes(k);return `<button type="button" class="rcard ${on?'on':''}" role="checkbox" aria-checked="${on}" data-act="toggleProv" data-cid="${c.id}" data-v="${esc(k)}" data-fk="pv-${c.id}-${esc(k)}"><b>${esc(k)}</b></button>`}).join('')}${legacy.map(k=>`<button type="button" class="rcard on legacy" role="checkbox" aria-checked="true" data-act="toggleProv" data-cid="${c.id}" data-v="${esc(k)}" data-fk="pv-${c.id}-${esc(k)}" title="Opção descontinuada. Toque para remover."><b>${esc(k)}</b><small>Descontinuada: toque para remover</small></button>`).join('')}</div>`;
+  return `<div class="rgroup g4${S.errs&&c.acoes.length!==1?' invalid-group':''}" role="radiogroup" aria-label="Providência">${PROV.map(k=>{const on=c.acoes.includes(k);return `<button type="button" class="rcard ${on?'on':''}" role="radio" aria-checked="${on}" data-act="toggleProv" data-cid="${c.id}" data-v="${esc(k)}" data-fk="pv-${c.id}-${esc(k)}"><b>${esc(k)}</b></button>`}).join('')}${legacy.map(k=>`<button type="button" class="rcard on legacy" role="radio" aria-checked="true" data-act="toggleProv" data-cid="${c.id}" data-v="${esc(k)}" data-fk="pv-${c.id}-${esc(k)}" title="Opção descontinuada. Toque para remover."><b>${esc(k)}</b><small>Descontinuada: toque para remover</small></button>`).join('')}</div>`;
 }
 function vComp(c,no,lvl=0){
   const open=!!S.open[c.id],id=c.id;
   return `<article class="comp ${open?'open':''}${lvl?' sub':''}" data-cid="${id}" style="--lv:${Math.min(lvl,6)}">${compHead(c,no,open)}${open?`<div class="comp-body${S.opening===id?' opening':''}"><div class="comp-in">
 <div class="grid g3"><div class="field"><label for="cn-${id}">Nome / descrição</label><input id="cn-${id}" class="${inv(c.name).trim()}" value="${esc(c.name)}" data-inp="c" data-cid="${id}" data-k="name" autocomplete="off"></div><div class="field"><span class="lbl">Desenho</span>${applic({on:!c.noDrawing,act:'cDraw',extra:`data-cid="${id}"`,yes:'Tem desenho',no:'Sem desenho'})}</div><div class="field"><label for="cd-${id}">Número do desenho</label><input id="cd-${id}" class="${c.noDrawing?'':inv(c.drawing).trim()}" value="${c.noDrawing?'':esc(c.drawing)}" data-inp="c" data-cid="${id}" data-k="drawing" autocomplete="off" ${c.noDrawing?'disabled placeholder="Sem desenho aplicável"':''}></div></div>
-<div class="field"><span class="lbl">Providência <span class="muted">(pode escolher mais de uma)</span></span>${provCards(c)}</div>
-${c.acoes.includes('Serviço externo')?vServ(c):''}${precisaMat(c)?vMats(c):''}${vAtivs(c)}${vSubs(c,no)}
+<div class="field"><span class="lbl">Providência</span>${c.acoes.length>1?`<p class="errbox" style="margin:0 0 10px">Este item antigo tem ${c.acoes.length} providências (${esc(c.acoes.join(', '))}). Escolha só uma.</p>`:''}${provCards(c)}</div>
+${c.acoes.includes('Serviço externo')?vServ(c):''}${vMats(c)}${vAtivs(c)}${vSubs(c,no)}
 <div class="field"><label for="co-${id}">Observação do item <span class="muted">(opcional)</span></label><textarea id="co-${id}" rows="2" data-inp="c" data-cid="${id}" data-k="obs">${esc(c.obs)}</textarea></div>
 <div class="field"><div class="ph-bar"><span class="lbl" style="margin:0">Fotos do componente (${c.photos.length})</span>${photoBtns(id)}</div>${photoGrid(c.photos,'comp',id)}${anexList(c.anexos,'comp',id)}</div>
 <div class="comp-foot"><button class="btn danger" data-act="delComp" data-cid="${id}">${ic('trash')}Excluir componente</button></div></div></div>`:''}</article>`;
@@ -588,7 +595,7 @@ function vAtivs(c){
   const lastSec=c.atividades.length?c.atividades[c.atividades.length-1].sectorId:null;
   const sel=secs.find(x=>x.id===S.sec[c.id])||secs.find(x=>x.id===lastSec)||secs[0];
   const acts=sel?sel.activities.filter(a=>a.active).sort(byPos):[];
-  const bad=S.errs&&!precisaMat(c)&&!c.atividades.some(a=>a.actId||!emp(a.t))&&!(c.acoes.includes('Serviço externo')&&c.servicos.length);
+  const bad=S.errs&&!precisaMat(c)&&!c.atividades.some(a=>a.actId||!emp(a.t))&&!(c.acoes.includes('Serviço externo')&&c.servicos.length)&&!visLeaves(c).length;
   const nSec=x=>c.atividades.filter(l=>l.actId&&(l.sectorId===x.id||l.sector===x.name)).length;
   const line=(a,j)=>{
     const btns=`<span class="ativ-b"><button class="iconb" data-act="moveAtiv" data-cid="${c.id}" data-aid="${a.id}" data-dir="-1" aria-label="Subir atividade ${j+1}" ${j===0?'disabled':''}>${ic('up')}</button><button class="iconb" data-act="moveAtiv" data-cid="${c.id}" data-aid="${a.id}" data-dir="1" aria-label="Descer atividade ${j+1}" ${j===c.atividades.length-1?'disabled':''}>${ic('chev')}</button><button class="iconb" data-act="delAtiv" data-cid="${c.id}" data-aid="${a.id}" aria-label="Excluir atividade ${j+1}">${ic('trash')}</button></span>`;
@@ -603,8 +610,9 @@ function vServ(c){
 }
 const leafBad=m=>emp(m.raw)||(m.tipo!=='serv'&&emp(m.material))||!(num(m.qty)>0);
 function vMats(c){
-  let nmp=0,nsv=0;
-  return `<div class="subpanel${S.errs&&c.materials.some(leafBad)?' invalid-group':''}"><div class="ph-row"><div><h3>Materiais a comprar</h3><p class="hint" style="margin:0">Um componente pode ter várias matérias-primas e serviços.</p></div><div class="actions"><button class="btn primary" data-act="addMat" data-cid="${c.id}">${ic('plus')}Adicionar matéria-prima</button><button class="btn" data-act="addLeaf" data-t="serv" data-cid="${c.id}">${ic('plus')}Adicionar serviço</button></div></div>${c.materials.length?c.materials.map((m,j)=>vMat(c,m,j,m.tipo==='serv'?++nsv:++nmp)).join(''):`<p class="hint">Nenhuma matéria-prima cadastrada.</p>`}</div>`;
+  let nmp=0,nsv=0;const mp=precisaMat(c),vis=visLeaves(c),hid=hiddenMp(c);
+  const list=c.materials.map((m,j)=>leafOn(c,m)?vMat(c,m,j,m.tipo==='serv'?++nsv:++nmp):'').join('');
+  return `<div class="subpanel${S.errs&&vis.some(leafBad)?' invalid-group':''}"><div class="ph-row"><div><h3>${mp?'Materiais e serviços':'Serviços'}</h3><p class="hint" style="margin:0">${mp?'Um componente pode ter várias matérias-primas e serviços.':'Matéria-prima só entra em Fabricar ou Substituir. Serviços valem para qualquer providência.'}</p></div><div class="actions">${mp?`<button class="btn primary" data-act="addMat" data-cid="${c.id}">${ic('plus')}Adicionar matéria-prima</button>`:''}<button class="btn${mp?'':' primary'}" data-act="addLeaf" data-t="serv" data-cid="${c.id}">${ic('plus')}Adicionar serviço</button></div></div>${list||`<p class="hint">${mp?'Nenhuma matéria-prima ou serviço cadastrado.':'Nenhum serviço cadastrado.'}</p>`}${hid?`<p class="hint">${plural(hid,'matéria-prima guardada','matérias-primas guardadas')} de quando o item era Fabricar ou Substituir. Não aparece no documento nem na lista de compras.</p>`:''}</div>`;
 }
 /* uma folha da estrutura: matéria-prima (com material/norma e dimensão) ou serviço. ord = número dentro do próprio tipo */
 function vMat(c,m,j,ord){
@@ -652,9 +660,9 @@ const pfs=(v,u)=>emp(v)?'':esc(v)+(u?' '+esc(u):'');
 function matLine(m){
   return [m.tipo==='serv'?'Serviço: '+esc(m.raw):esc(m.raw),esc(m.material),esc(m.dimensao),esc(codeOf(m)),emp(m.qty)?'':esc(m.qty)+' '+esc(m.unit)].filter(Boolean).join(' | ');
 }
-function rpItem({no,nome,prov,desenho,photos=[],lines=[],mats=[],obs='',semProv=false}){
+function rpItem({no,nome,prov,desenho,photos=[],lines=[],mats=[],matsT='Materiais a comprar',obs='',semProv=false}){
   const cs=semProv?3:5;   // itens fixos (TESTE, PLACA, EMBALAGEM) não têm providência: a linha de cima tem 4 células em vez de 6
-  return `<div class="rp-item"><table class="report-table"><tr><th class="w-s">Item</th><td class="w-s">${no}</td><th class="w-m">Descrição</th><td>${esc(nome)}</td>${semProv?'':`<th class="w-m">Providência</th><td>${esc(prov)||'—'}</td>`}</tr>${desenho?`<tr><th>Desenho</th><td colspan="${cs}">${desenho}</td></tr>`:''}${photos.length?`<tr><th>Imagem</th><td colspan="${cs}"><div class="rp-photos">${photos.map(p=>`<img class="report-photo" src="${Photos.url(p.id)}" alt="">`).join('')}</div></td></tr>`:''}<tr><th>Atividade</th><td colspan="${cs}">${lines.length?`<ol class="rp-lines">${lines.map(l=>`<li>${l}</li>`).join('')}</ol>`:'—'}${mats.length?`<p class="rp-mat"><b>Materiais a comprar:</b></p><ol class="rp-lines">${mats.map(l=>`<li>${l}</li>`).join('')}</ol>`:''}</td></tr><tr><th>Obs.</th><td colspan="${cs}">${esc(obs).replace(/\n/g,'<br>')||'—'}</td></tr></table></div>`;
+  return `<div class="rp-item"><table class="report-table"><tr><th class="w-s">Item</th><td class="w-s">${no}</td><th class="w-m">Descrição</th><td>${esc(nome)}</td>${semProv?'':`<th class="w-m">Providência</th><td>${esc(prov)||'—'}</td>`}</tr>${desenho?`<tr><th>Desenho</th><td colspan="${cs}">${desenho}</td></tr>`:''}${photos.length?`<tr><th>Imagem</th><td colspan="${cs}"><div class="rp-photos">${photos.map(p=>`<img class="report-photo" src="${Photos.url(p.id)}" alt="">`).join('')}</div></td></tr>`:''}<tr><th>Atividade</th><td colspan="${cs}">${lines.length?`<ol class="rp-lines">${lines.map(l=>`<li>${l}</li>`).join('')}</ol>`:'—'}${mats.length?`<p class="rp-mat"><b>${matsT}:</b></p><ol class="rp-lines">${mats.map(l=>`<li>${l}</li>`).join('')}</ol>`:''}</td></tr><tr><th>Obs.</th><td colspan="${cs}">${esc(obs).replace(/\n/g,'<br>')||'—'}</td></tr></table></div>`;
 }
 function testeLines(r){
   const t=T(r),a=t.acionamento,s=t.sede,c=t.corpo,g=t.geral,L=[];
@@ -684,7 +692,7 @@ function embLines(r){
 }
 /* Modelo único do documento: a tela (HTML) e o PDF arquivado leem exatamente os mesmos itens. */
 function reportModel(r){
-  const items=treeList(r).map(({c,no})=>({no,nome:c.name,prov:c.acoes.join(' / '),desenho:c.noDrawing?'Sem desenho aplicável':esc(c.drawing),photos:c.photos,lines:[...c.atividades.filter(a=>a.actId||!emp(a.t)).map(a=>esc(a.actId?(a.sector+': '+ativText(a)).toUpperCase():a.t)),...(c.acoes.includes('Serviço externo')?c.servicos.filter(x=>x.serviceId||!emp(x.nome)).map(x=>esc(('Serviço externo: '+x.nome+(emp(x.obs)?'':' — '+x.obs)).toUpperCase())):[])],mats:precisaMat(c)?c.materials.map(matLine):[],obs:c.obs}));
+  const items=treeList(r).map(({c,no})=>({no,nome:c.name,prov:c.acoes.join(' / '),desenho:c.noDrawing?'Sem desenho aplicável':esc(c.drawing),photos:c.photos,lines:[...c.atividades.filter(a=>a.actId||!emp(a.t)).map(a=>esc(a.actId?(a.sector+': '+ativText(a)).toUpperCase():a.t)),...(c.acoes.includes('Serviço externo')?c.servicos.filter(x=>x.serviceId||!emp(x.nome)).map(x=>esc(('Serviço externo: '+x.nome+(emp(x.obs)?'':' — '+x.obs)).toUpperCase())):[])],mats:visLeaves(c).map(matLine),matsT:matsTitle(visLeaves(c)),obs:c.obs}));
   const nComp=items.length;let k=kidsOf(r,null).length;   // TESTE/PLACA/EMBALAGEM continuam a numeração dos componentes principais
   const blank={prov:'',semProv:true,desenho:'',photos:[],mats:[],obs:''};
   const tl=testeLines(r);if(tl.length)items.push({...blank,no:++k,nome:'TESTE',lines:tl});
@@ -713,11 +721,11 @@ function vExec(){
    integrado ele virá da busca por nome/código, e a caixa "Não tem cadastro" continua valendo para o que ainda não existe lá. */
 const leafKind=m=>m.tipo==='serv'?'Serviço':'Matéria-prima';
 const plural=(n,a,b)=>`${n} ${n===1?a:b}`;
-function structStats(r){let mp=0,sv=0;r.components.forEach(c=>c.materials.forEach(m=>m.tipo==='serv'?sv++:mp++));return{comp:r.components.length,mp,sv}}
-/* lista de compras: só componentes com providência que exige material (Fabricar/Substituir), como sempre foi */
+function structStats(r){let mp=0,sv=0;r.components.forEach(c=>visLeaves(c).forEach(m=>m.tipo==='serv'?sv++:mp++));return{comp:r.components.length,mp,sv}}
+/* lista de compras: matérias-primas (só Fabricar/Substituir) e serviços (qualquer providência) */
 function matRows(r){
   const rows=[];
-  treeList(r).forEach(({c,no})=>{if(!precisaMat(c))return;c.materials.forEach(m=>rows.push({no,comp:c.name,prov:c.acoes.filter(a=>COM_MAT.includes(a)).join(' / '),tipo:leafKind(m),raw:m.raw,material:m.tipo==='serv'?'':m.material,dimensao:m.tipo==='serv'?'':m.dimensao,codigo:codeOf(m),unit:m.unit,qty:m.qty,drawing:c.noDrawing?'Sem desenho':c.drawing,obs:m.obs}))});
+  treeList(r).forEach(({c,no})=>{visLeaves(c).forEach(m=>rows.push({no,comp:c.name,prov:c.acoes.join(' / '),tipo:leafKind(m),raw:m.raw,material:m.tipo==='serv'?'':m.material,dimensao:m.tipo==='serv'?'':m.dimensao,codigo:codeOf(m),unit:m.unit,qty:m.qty,drawing:c.noDrawing?'Sem desenho':c.drawing,obs:m.obs}))});
   return rows;   // já na ordem do documento (1, 1.1, 1.2, 2…)
 }
 /* a árvore inteira, achatada em linhas (usada na exportação): componente, depois suas folhas, depois seus subcomponentes */
@@ -726,19 +734,19 @@ function structRows(r){
   const rec=(id,lvl,pai)=>kidsOf(r,id).forEach(c=>{
     const no=compNo(r,c);
     rows.push({lvl,no,tipo:'Componente',codigo:codeOf(c),sem:c.semCadastro,desc:c.name,material:'',dimensao:'',unit:c.unid,qty:c.qtd,prov:c.acoes.join(' / '),drawing:c.noDrawing?'Sem desenho':c.drawing,pai,obs:c.obs});
-    c.materials.forEach(m=>rows.push({lvl:lvl+1,no:'',tipo:leafKind(m),codigo:codeOf(m),sem:m.semCadastro,desc:m.raw,material:m.tipo==='serv'?'':m.material,dimensao:m.tipo==='serv'?'':m.dimensao,unit:m.unit,qty:m.qty,prov:'',drawing:'',pai:lab(c,no),obs:m.obs}));
+    visLeaves(c).forEach(m=>rows.push({lvl:lvl+1,no:'',tipo:leafKind(m),codigo:codeOf(m),sem:m.semCadastro,desc:m.raw,material:m.tipo==='serv'?'':m.material,dimensao:m.tipo==='serv'?'':m.dimensao,unit:m.unit,qty:m.qty,prov:'',drawing:'',pai:lab(c,no),obs:m.obs}));
     rec(c.id,lvl+1,lab(c,no));
   });
   rec(null,0,'');return rows;
 }
 function nodeStatus(c,no){const n=compIssues(c,no).length;return n?`<span class="tn-st comp-st warn">${ic('alert','ic sm')}${plural(n,'pendência','pendências')}</span>`:`<span class="tn-st comp-st ok">${ic('check','ic sm')}Completo</span>`}
 function vNode(r,c,lvl){
-  const id=c.id,no=compNo(r,c),open=!S.tc[id],has=kidsOf(r,id).length>0||c.materials.length>0;
+  const id=c.id,no=compNo(r,c),open=!S.tc[id],has=kidsOf(r,id).length>0||visLeaves(c).length>0;
   const ban=descOf(r,id);ban.add(id);   // o pai novo nunca pode ser o próprio componente nem um descendente dele
   const opts=treeList(r).filter(x=>!ban.has(x.c.id)).map(({c:x,no:nx})=>`<option value="${x.id}" ${c.parentId===x.id?'selected':''}>${esc(nx)} — ${esc(x.name)||'Sem descrição'}</option>`).join('');
-  const chip=(k,old)=>{const on=c.acoes.includes(k);return `<button type="button" class="chip sm ${on?'on':''}${old?' legacy':''}" role="checkbox" aria-checked="${on}" data-act="toggleProv" data-cid="${id}" data-v="${esc(k)}" data-fk="np-${id}-${esc(k)}"${old?' title="Opção descontinuada. Toque para remover."':''}>${on?ic('check','ic sm'):''}${esc(k)}</button>`};
+  const chip=(k,old)=>{const on=c.acoes.includes(k);return `<button type="button" class="chip sm ${on?'on':''}${old?' legacy':''}" role="radio" aria-checked="${on}" data-act="toggleProv" data-cid="${id}" data-v="${esc(k)}" data-fk="np-${id}-${esc(k)}"${old?' title="Opção descontinuada. Toque para remover."':''}>${on?ic('check','ic sm'):''}${esc(k)}</button>`};
   let nmp=0,nsv=0;
-  const leaves=c.materials.map((m,j)=>`<div class="tl" style="--lv:${Math.min(lvl+1,7)}">${vMat(c,m,j,m.tipo==='serv'?++nsv:++nmp)}</div>`).join('');
+  const leaves=c.materials.map((m,j)=>leafOn(c,m)?`<div class="tl" style="--lv:${Math.min(lvl+1,7)}">${vMat(c,m,j,m.tipo==='serv'?++nsv:++nmp)}</div>`:'').join('');
   return `<div class="tn" style="--lv:${Math.min(lvl,6)}" data-cid="${id}"><div class="tn-row"><div class="tn-top">
 <button type="button" class="tn-t" data-act="toggleNode" data-cid="${id}" aria-expanded="${open}" aria-label="${open?'Recolher':'Expandir'} ${esc(c.name)||'componente'}" ${has?'':'disabled'} data-fk="nt-${id}">${ic('chev')}</button>
 <span class="comp-no" title="Item ${no} do documento">${no}</span>
@@ -747,8 +755,8 @@ function vNode(r,c,lvl){
 <div class="field"><label for="su-${id}">Un.</label><select id="su-${id}" data-chg="c" data-cid="${id}" data-k="unid">${withLegacy(UNITS,c.unid).map(o=>`<option ${c.unid===o?'selected':''}>${esc(o)}</option>`).join('')}</select></div>
 <div class="field"><label for="sq-${id}">Qtd.</label><input id="sq-${id}" type="number" step="any" inputmode="decimal" value="${esc(c.qtd)}" data-inp="c" data-cid="${id}" data-k="qtd"></div></div>
 ${nodeStatus(c,no)}</div>
-<div class="tn-bar"><div class="chips tn-prov" role="group" aria-label="Providência do item ${no}">${PROV.map(k=>chip(k,false)).join('')}${c.acoes.filter(a=>!PROV.includes(a)).map(k=>chip(k,true)).join('')}</div>
-<div class="tn-acts"><button type="button" class="btn sm" data-act="addNode" data-pid="${id}">${ic('plus')}Subcomponente</button><button type="button" class="btn sm" data-act="addLeaf" data-t="mp" data-cid="${id}">${ic('plus')}Matéria-prima</button><button type="button" class="btn sm" data-act="addLeaf" data-t="serv" data-cid="${id}">${ic('plus')}Serviço</button></div></div>
+<div class="tn-bar"><div class="chips tn-prov" role="radiogroup" aria-label="Providência do item ${no}">${PROV.map(k=>chip(k,false)).join('')}${c.acoes.filter(a=>!PROV.includes(a)).map(k=>chip(k,true)).join('')}</div>
+<div class="tn-acts"><button type="button" class="btn sm" data-act="addNode" data-pid="${id}">${ic('plus')}Subcomponente</button>${precisaMat(c)?`<button type="button" class="btn sm" data-act="addLeaf" data-t="mp" data-cid="${id}">${ic('plus')}Matéria-prima</button>`:''}<button type="button" class="btn sm" data-act="addLeaf" data-t="serv" data-cid="${id}">${ic('plus')}Serviço</button></div></div>
 <details class="tn-more"><summary>Mais opções</summary><div class="tn-more-b"><div class="field"><label for="sp-${id}">Subcomponente de</label><select id="sp-${id}" data-chg="cpar" data-cid="${id}"><option value="">Nível principal</option>${opts}</select></div><div class="actions"><button type="button" class="btn" data-act="openComp" data-cid="${id}">Abrir no componente (atividades e fotos)</button><button type="button" class="btn danger" data-act="delComp" data-cid="${id}">${ic('trash')}Excluir</button></div></div></details>
 </div></div>${open?leaves:''}`;
 }
@@ -759,7 +767,7 @@ function vTree(r){
 }
 function vBuy(r){
   const rows=matRows(r);
-  return `<div class="panel"><p class="hint" style="margin-top:0">Consolidado do que comprar: só componentes com providência “Fabricar” ou “Substituir”.</p>${rows.length?`<div class="tw"><table class="tbl"><thead><tr><th>Item</th><th>Componente</th><th>Providência</th><th>Tipo</th><th>Matéria-prima / serviço</th><th>Material / norma</th><th>Dimensão</th><th>Código</th><th>Un.</th><th>Qtd.</th><th>Desenho</th><th>Obs.</th></tr></thead><tbody>${rows.map(x=>`<tr><td>${x.no}</td><td class="wrap">${esc(x.comp)}</td><td>${esc(x.prov)}</td><td>${esc(x.tipo)}</td><td class="wrap">${esc(x.raw)}</td><td class="wrap">${esc(x.material)}</td><td>${esc(x.dimensao)}</td><td>${esc(x.codigo)}</td><td>${esc(x.unit)}</td><td>${esc(x.qty)}</td><td>${esc(x.drawing)}</td><td class="wrap">${esc(x.obs)}</td></tr>`).join('')}</tbody></table></div>`:'<div class="empty"><p>Nada para comprar ainda. Matérias-primas e serviços de componentes com providência “Fabricar” ou “Substituir” aparecem aqui.</p></div>'}</div>`;
+  return `<div class="panel"><p class="hint" style="margin-top:0">Consolidado do que comprar: matérias-primas dos itens “Fabricar” ou “Substituir” e serviços de qualquer providência.</p>${rows.length?`<div class="tw"><table class="tbl"><thead><tr><th>Item</th><th>Componente</th><th>Providência</th><th>Tipo</th><th>Matéria-prima / serviço</th><th>Material / norma</th><th>Dimensão</th><th>Código</th><th>Un.</th><th>Qtd.</th><th>Desenho</th><th>Obs.</th></tr></thead><tbody>${rows.map(x=>`<tr><td>${x.no}</td><td class="wrap">${esc(x.comp)}</td><td>${esc(x.prov)}</td><td>${esc(x.tipo)}</td><td class="wrap">${esc(x.raw)}</td><td class="wrap">${esc(x.material)}</td><td>${esc(x.dimensao)}</td><td>${esc(x.codigo)}</td><td>${esc(x.unit)}</td><td>${esc(x.qty)}</td><td>${esc(x.drawing)}</td><td class="wrap">${esc(x.obs)}</td></tr>`).join('')}</tbody></table></div>`:'<div class="empty"><p>Nada para comprar ainda. Matérias-primas e serviços de componentes com providência “Fabricar” ou “Substituir” aparecem aqui.</p></div>'}</div>`;
 }
 function vStructure(){
   const r=cur(),st=structStats(r),buy=S.sv==='buy';
@@ -865,7 +873,7 @@ async function buildPdf(r,{compress=true}={}){
     const rows=[[H('Item'),{content:String(it.no),styles:{halign:'center'}},H('Descrição'),V(it.nome),...(it.semProv?[]:[H('Providência'),V(it.prov)])]];
     if(it.desenho)rows.push([H('Desenho'),{content:V(plain(it.desenho)),colSpan:cs}]);
     let at=it.lines.map((l,i)=>`${i+1}. ${plain(l)}`).join('\n');
-    if(it.mats.length)at+=(at?'\n\n':'')+'Materiais a comprar:\n'+it.mats.map((l,i)=>`${i+1}. ${plain(l)}`).join('\n');
+    if(it.mats.length)at+=(at?'\n\n':'')+(it.matsT||'Materiais a comprar')+':\n'+it.mats.map((l,i)=>`${i+1}. ${plain(l)}`).join('\n');
     rows.push([H('Atividade'),{content:V(at),colSpan:cs}]);
     rows.push([H('Obs.'),{content:V(it.obs),colSpan:cs}]);
     doc.autoTable({...grid,startY:y,body:rows,rowPageBreak:'avoid',columnStyles:{0:{cellWidth:18},1:{cellWidth:13},2:{cellWidth:22},4:{cellWidth:24}}});
@@ -1408,9 +1416,11 @@ const ACT={
   toggleProv(el){
     const c=C(el.dataset.cid),v=el.dataset.v;
     const legacy=c.acoes.filter(a=>!PROV.includes(a));
-    c.acoes=PROV.includes(v)?[...PROV.filter(x=>x===v?!c.acoes.includes(v):c.acoes.includes(x)),...legacy]:c.acoes.filter(a=>a!==v);   // opção descontinuada só pode ser removida
+    const hadMp=precisaMat(c);
+    c.acoes=PROV.includes(v)?[v]:c.acoes.filter(a=>a!==v);   // uma providência só: escolher outra substitui; opção descontinuada só pode ser removida
     c.action=c.acoes[0]||'';
     changed();renderMain();
+    if(hadMp&&!precisaMat(c)&&hiddenMp(c))toast(hiddenMp(c)===1?'A matéria-prima ficou guardada: volta ao escolher Fabricar ou Substituir.':`${hiddenMp(c)} matérias-primas ficaram guardadas: voltam ao escolher Fabricar ou Substituir.`,{ms:6000});
   },
   addMat(el){C(el.dataset.cid).materials.push(newLeaf('mp'));changed();renderMain()},
   addLeaf(el){const c=C(el.dataset.cid);c.materials.push(newLeaf(el.dataset.t));S.tc[c.id]=false;changed();renderMain()},
@@ -1428,7 +1438,7 @@ const ACT={
     S.focus='sn-'+c.id;changed();renderMain();
   },
   toggleNode(el){S.tc[el.dataset.cid]=!S.tc[el.dataset.cid];renderMain()},
-  treeAll(el){const r=cur();S.tc={};if(el.dataset.v==='close')r.components.forEach(c=>{if(kidsOf(r,c.id).length||c.materials.length)S.tc[c.id]=true});renderMain()},
+  treeAll(el){const r=cur();S.tc={};if(el.dataset.v==='close')r.components.forEach(c=>{if(kidsOf(r,c.id).length||visLeaves(c).length)S.tc[c.id]=true});renderMain()},
   openComp(el){const id=el.dataset.cid;S.open[id]=true;S.opening=id;go('components');const a=document.querySelector(`.comp[data-cid="${qAttr(id)}"]`);if(a&&a.scrollIntoView)a.scrollIntoView({block:'start'})},
   pickSector(el){S.sec[el.dataset.cid]=el.dataset.sid;renderMain()},
   toggleAct(el){
@@ -1628,6 +1638,8 @@ document.addEventListener('click',e=>{
 });
 document.addEventListener('change',e=>{const el=e.target.closest('[data-chg]');if(el)CHG[el.dataset.chg]?.(el)});
 document.addEventListener('submit',e=>{const f=e.target.closest('[data-submit]');if(f){e.preventDefault();SUB[f.dataset.submit]?.(f)}});
+/* iPhone/iPad: sem um ouvinte de toque o Safari não aplica :active, e o botão não responde na hora do toque */
+document.addEventListener('touchstart',()=>{},{passive:true});
 /* Maiúsculas em campos de texto (login, senha, busca e pressões ficam fora via data-keep-case). Roda antes dos handlers. */
 document.addEventListener('input',e=>{
   const t=e.target;if(!(t.tagName==='TEXTAREA'||(t.tagName==='INPUT'&&t.type==='text'))||'keepCase' in t.dataset)return;

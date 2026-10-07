@@ -600,3 +600,257 @@ dialog.dlg.closing::backdrop{opacity:0;transition:opacity var(--d-quick) var(--e
 .actions.col{flex-direction:column;align-items:stretch}
 .name-caps{margin-top:6px;min-height:44px;font-size:14px}
 .pasta-note code{word-break:break-all}
+
+/* =====================================================================
+   v5.6.0 — "AÇO & VIDRO"
+   Superfícies de alumínio usinado (brilho fino na borda de cima), barras e avisos em vidro fumê,
+   uma única luz azul de instrumento que só acende no que está ativo ou em foco.
+   Movimento: resposta no toque (pressão em 90 ms) e retorno por mola criticamente amortecida (sem quique);
+   só o "check" da escolha marcada quica. O documento (.report) não é tocado: o formulário controlado imprime igual.
+   ===================================================================== */
+:root{
+  --bg:#e9ecf0;--surface:#fff;--surface-2:#f4f6f8;--surface-3:#eef1f4;
+  --line:#d8dde3;--line-strong:#7d8591;
+  --text:#0c0e12;--muted:#565d68;
+  --accent:#2a72ff;--accent-2:#6aa2ff;--on-accent:#fff;
+  --glow:color-mix(in srgb,var(--accent) 34%,transparent);
+  --glass:rgba(250,251,253,.74);--glass-dark:rgba(10,12,16,.76);--glass-line:rgba(255,255,255,.55);
+  --hi:inset 0 1px 0 rgba(255,255,255,.9);
+  --sh-1:0 1px 2px rgba(16,24,40,.06),0 1px 1px rgba(16,24,40,.04);
+  --sh-2:0 1px 2px rgba(16,24,40,.06),0 10px 28px -14px rgba(16,24,40,.22);
+  --sh-3:0 2px 6px rgba(16,24,40,.08),0 24px 60px -20px rgba(16,24,40,.38);
+  --r-s:8px;--r:12px;--r-l:16px;
+  /* molas (geradas a partir da física: amortecimento 1,0 resposta 0,4 s; e 0,55 para o check) */
+  --spring:linear(0,.026,.088,.17,.26,.35,.436,.515,.587,.651,.706,.754,.795,.83,.859,.884,.905,.922,.936,.948,.957,.965,.972,.977,.981,.985,.988,.99,1);
+  --spring-b:linear(0,.044,.156,.306,.47,.63,.774,.895,.989,1.056,1.099,1.121,1.126,1.119,1.104,1.085,1.064,1.044,1.026,1.012,1,.992,.987,.985,.984,.985,.987,.99,.992,.995,.997,.999,1);
+  --d-spring:440ms;--d-press:90ms;
+}
+@supports not (transition-timing-function:linear(0,1)){:root{--spring:cubic-bezier(.2,.8,.2,1);--spring-b:cubic-bezier(.34,1.56,.64,1)}}
+[data-theme=dark]{
+  --bg:#090b0e;--surface:#13161b;--surface-2:#1a1e24;--surface-3:#20252c;
+  --line:#272c34;--line-strong:#6d7581;
+  --text:#eef1f5;--muted:#a3abb7;
+  --accent:#4d8dff;--accent-2:#8bb6ff;
+  --glass:rgba(19,22,27,.72);--glass-dark:rgba(6,8,11,.78);--glass-line:rgba(255,255,255,.08);
+  --hi:inset 0 1px 0 rgba(255,255,255,.06);
+  --sh-1:0 1px 2px rgba(0,0,0,.5);
+  --sh-2:0 1px 2px rgba(0,0,0,.5),0 12px 30px -14px rgba(0,0,0,.8);
+  --sh-3:0 2px 8px rgba(0,0,0,.5),0 28px 70px -20px rgba(0,0,0,.9);
+}
+html{-webkit-tap-highlight-color:transparent}
+body{
+  background-color:var(--bg);
+  background-image:radial-gradient(1200px 600px at 85% -10%,color-mix(in srgb,var(--accent) 7%,transparent),transparent 70%),
+    radial-gradient(900px 500px at -10% 110%,color-mix(in srgb,var(--line-strong) 10%,transparent),transparent 70%);
+  background-attachment:fixed;letter-spacing:-.003em;
+}
+::selection{background:color-mix(in srgb,var(--accent) 30%,transparent)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:var(--r-s)}
+.topbar :focus-visible,.login-art :focus-visible{outline-color:var(--accent-2)}
+
+/* ---- tipografia: tracking por tamanho ---- */
+.ph h1,.list-h h1,.sheet-h h2,.cb-eq b,.la-mid h1{letter-spacing:-.005em}
+.ph h1{font-size:38px}
+.ph p{max-width:72ch}
+.panel>h2,.ph-row>h2{letter-spacing:-.01em}
+.hint{line-height:1.45}
+
+/* ---- barra superior: vidro fumê ---- */
+.topbar{background:var(--glass-dark);-webkit-backdrop-filter:blur(22px) saturate(170%);backdrop-filter:blur(22px) saturate(170%);
+  box-shadow:inset 0 -1px 0 rgba(255,255,255,.07),0 8px 24px -16px rgba(0,0,0,.6)}
+.topbar::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:1px;background:linear-gradient(90deg,transparent,color-mix(in srgb,var(--accent) 55%,transparent) 50%,transparent);opacity:.55;pointer-events:none}
+.pill{border-color:rgba(255,255,255,.14);background:rgba(255,255,255,.04)}
+button.pill:hover{background:rgba(255,255,255,.1)}
+.pill[data-s=saved] i,.pill[data-s=ok] i{box-shadow:0 0 8px #3fb67a}
+.iconbtn,.userchip{border-color:rgba(255,255,255,.14);border-radius:var(--r-s);background:rgba(255,255,255,.04)}
+.iconbtn:hover,.userchip:hover{background:rgba(255,255,255,.12)}
+.wm-b{border-radius:4px;box-shadow:0 0 0 1px rgba(255,255,255,.4),0 4px 14px -4px rgba(255,255,255,.35)}
+
+/* ---- superfícies: alumínio usinado ---- */
+.panel,.list-p,.comp,.steps,.carimbo,.sheet,.empty-art,.tn-row,.cat-sec,.doc,.serv,.mat,.anx,.audit li,.prog li,.tw{border-radius:var(--r)}
+.panel,.list-p,.carimbo,.sheet,.empty-art,.comp,.tn-row{border:1px solid var(--line);box-shadow:var(--hi),var(--sh-2);background:var(--surface)}
+.subpanel{border-radius:var(--r);background:var(--surface-2);border-color:var(--line);box-shadow:inset 0 1px 2px rgba(16,24,40,.04)}
+.mat,.serv,.doc,.anx,.cat-sec{border-color:var(--line);box-shadow:var(--hi),var(--sh-1)}
+.tw{border-color:var(--line)}
+.tbl th{background:var(--surface-2);font-size:13px;letter-spacing:.01em;color:var(--muted)}
+.tbl tr:last-child td{border-bottom:0}
+.empty{border-radius:var(--r);border:1.5px dashed var(--line-strong);background:color-mix(in srgb,var(--surface) 70%,transparent)}
+.errbox{border-radius:var(--r);border-width:1.5px;box-shadow:0 0 0 4px color-mix(in srgb,var(--bad) 10%,transparent)}
+.sheet{border:1px solid var(--line)}
+.sheet-h{border-bottom:1px solid var(--line)}
+.carimbo{overflow:hidden;border:1px solid var(--line)}
+.cb-grid,.kv{background:var(--line)}
+.carimbo .back{border-bottom-color:var(--line)}
+.comp.open{border:1px solid color-mix(in srgb,var(--accent) 45%,var(--line));box-shadow:var(--hi),0 0 0 3px color-mix(in srgb,var(--accent) 12%,transparent),var(--sh-2)}
+.comp.sub{border-left:3px solid var(--ink)}
+.comp-head{border-radius:var(--r)}
+.comp-body{border-top-color:var(--line)}
+.tn-row{border-left:3px solid var(--ink)}
+.tl .mat{border-style:dashed}
+
+/* ---- botões ---- */
+.btn{position:relative;overflow:hidden;isolation:isolate;border:1.5px solid color-mix(in srgb,var(--ink) 82%,transparent);border-radius:var(--r-s);
+  background:linear-gradient(180deg,var(--surface),var(--surface-2));box-shadow:var(--hi),var(--sh-1);letter-spacing:-.005em}
+.btn:hover{background:linear-gradient(180deg,var(--surface),var(--surface-3))}
+.btn.primary{border-color:var(--ink);background:linear-gradient(180deg,color-mix(in srgb,var(--ink) 86%,var(--surface)),var(--ink));color:var(--on-ink);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.18),0 1px 2px rgba(0,0,0,.2),0 8px 20px -10px color-mix(in srgb,var(--ink) 70%,transparent)}
+.btn.primary:hover{background:linear-gradient(180deg,color-mix(in srgb,var(--ink) 78%,var(--surface)),var(--ink));border-color:var(--ink);color:var(--on-ink);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.2),0 0 0 3px var(--glow),0 10px 24px -10px color-mix(in srgb,var(--accent) 60%,transparent)}
+/* brilho que atravessa o botão principal (só com mouse) */
+.btn.primary::after{content:"";position:absolute;inset:0;z-index:-1;background:linear-gradient(105deg,transparent 30%,rgba(255,255,255,.28) 48%,rgba(255,255,255,.06) 56%,transparent 70%);transform:translateX(-120%);pointer-events:none}
+[data-theme=dark] .btn.primary::after{background:linear-gradient(105deg,transparent 30%,rgba(0,0,0,.14) 48%,rgba(0,0,0,.04) 56%,transparent 70%)}
+@media(hover:hover){.btn.primary:hover::after{transform:translateX(120%);transition:transform 700ms cubic-bezier(.4,0,.2,1)}}
+.btn.ghost{background:transparent;box-shadow:none;border-color:transparent}
+.btn.ghost:hover{background:color-mix(in srgb,var(--ink) 6%,transparent)}
+.btn.danger{background:linear-gradient(180deg,var(--surface),var(--surface-2));border-color:color-mix(in srgb,var(--bad-text) 70%,transparent)}
+.btn.danger:hover{background:var(--bad-text);border-color:var(--bad-text);color:#fff}
+.iconb,.tn-t{border-radius:var(--r-s);border-color:var(--line);background:linear-gradient(180deg,var(--surface),var(--surface-2));box-shadow:var(--hi),var(--sh-1)}
+.link{border-radius:var(--r-s)}
+
+/* ---- campos ---- */
+input:not([type=checkbox]):not([type=radio]),select,textarea{border-radius:var(--r-s);border:1.5px solid color-mix(in srgb,var(--line-strong) 75%,var(--line));
+  background:var(--surface);box-shadow:inset 0 1px 2px rgba(16,24,40,.05);
+  transition:border-color 160ms var(--ease),box-shadow 220ms var(--ease),background-color 160ms var(--ease)}
+input:not([type=checkbox]):not([type=radio]):hover,select:hover,textarea:hover{border-color:var(--line-strong)}
+input:not([type=checkbox]):not([type=radio]):focus,select:focus,textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 4px var(--glow),inset 0 1px 2px rgba(16,24,40,.04)}
+input:disabled,select:disabled{background:var(--surface-2)}
+.invalid{box-shadow:0 0 0 4px color-mix(in srgb,var(--bad) 22%,transparent)!important}
+.invalid-group{outline:2px solid color-mix(in srgb,var(--bad) 55%,transparent);outline-offset:4px;border-radius:var(--r)}
+.field>label:not(.switch),.field>.lbl{letter-spacing:-.003em}
+
+/* ---- cartões de opção, chips, segmentados ---- */
+.rcard{border-radius:var(--r);border:1.5px solid color-mix(in srgb,var(--line-strong) 70%,var(--line));background:linear-gradient(180deg,var(--surface),var(--surface-2));box-shadow:var(--hi),var(--sh-1)}
+.rcard:hover{border-color:var(--ink)}
+.rcard.on{background:linear-gradient(180deg,color-mix(in srgb,var(--ink) 88%,var(--surface)),var(--ink));border-color:var(--ink);color:var(--on-ink);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.14),0 0 0 3px var(--glow),0 10px 26px -14px color-mix(in srgb,var(--accent) 80%,transparent)}
+.rcard.on::after{border-color:var(--accent-2)}
+[data-theme=dark] .rcard.on::after{border-color:var(--accent)}
+.chip{border-radius:999px;border:1.5px solid color-mix(in srgb,var(--line-strong) 70%,var(--line));background:linear-gradient(180deg,var(--surface),var(--surface-2));box-shadow:var(--hi),var(--sh-1)}
+.chip:hover{border-color:var(--ink)}
+.chip.on{background:var(--ink);border-color:var(--ink);color:var(--on-ink);box-shadow:0 0 0 3px var(--glow)}
+.chip.on .ic{color:var(--accent-2)}
+[data-theme=dark] .chip.on .ic{color:var(--accent)}
+.seg,.appl{border:1.5px solid color-mix(in srgb,var(--ink) 85%,transparent);border-radius:var(--r-s);padding:3px;gap:3px;background:var(--surface-2);box-shadow:inset 0 1px 2px rgba(16,24,40,.06)}
+.seg-b,.ap{border-radius:calc(var(--r-s) - 3px);background:transparent;min-height:40px}
+.seg-b+.seg-b,.ap+.ap{border-left:0}
+.seg-b.on{background:var(--ink);color:var(--on-ink);box-shadow:0 1px 2px rgba(0,0,0,.2),0 0 0 2px var(--glow)}
+.ap.yes.on,.ap.no.on{box-shadow:0 1px 2px rgba(0,0,0,.15)}
+.panel[data-ap=yes]{border-left:4px solid var(--ok)}
+.panel[data-ap=no]{border-left:4px solid var(--na)}
+.badge{border-radius:6px}
+.badge.sec{background:var(--ink)}
+
+/* ---- interruptor com mola ---- */
+.switch .track{border-width:1.5px;background:var(--surface-2);box-shadow:inset 0 1px 3px rgba(16,24,40,.12)}
+.switch .track::after{top:3.5px;left:3.5px;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.3),0 0 0 .5px rgba(0,0,0,.08);transition:transform var(--d-spring) var(--spring),background-color 160ms var(--ease)}
+.switch input:checked+.track{background:var(--accent);border-color:var(--accent);box-shadow:0 0 0 3px var(--glow)}
+.switch input:checked+.track::after{transform:translateX(22px);background:#fff}
+.switch:active .track::after{width:24px}
+.switch input:checked:active+.track::after{transform:translateX(18px)}
+
+/* ---- lista de processos e etapas ---- */
+.list-p{overflow:hidden}
+#rows{border-top-color:var(--line)}
+.row{border-left:4px solid var(--st);border-bottom-color:var(--line)}
+.row.sel{background:color-mix(in srgb,var(--accent) 7%,var(--surface));box-shadow:inset 0 0 0 1.5px color-mix(in srgb,var(--accent) 55%,transparent)}
+.steps{padding:8px;gap:2px}
+.step{border-radius:var(--r-s);border-left:0}
+.step.cur{background:color-mix(in srgb,var(--accent) 8%,var(--surface));box-shadow:inset 3px 0 0 var(--accent)}
+.step.cur .node{border-color:var(--accent);box-shadow:0 0 0 4px var(--glow)}
+.step.ok .node{background:var(--ink);border-color:var(--ink)}
+.step:not(:last-child)::after{left:31px;background:var(--line)}
+.node{transition:box-shadow 240ms var(--ease),background-color 160ms var(--ease)}
+.prog li{border-color:var(--line)}
+.prog li.ok{border-color:color-mix(in srgb,var(--ok) 60%,var(--line))}
+
+/* ---- barra de ações: vidro claro ---- */
+.actionbar{background:var(--glass);-webkit-backdrop-filter:blur(20px) saturate(170%);backdrop-filter:blur(20px) saturate(170%);
+  border-top:1px solid var(--glass-line);box-shadow:0 -1px 0 var(--line),0 -12px 30px -18px rgba(16,24,40,.3)}
+
+/* ---- fotos e anexos ---- */
+.ph-tile{border-radius:var(--r-s);border-color:var(--line);box-shadow:var(--sh-1)}
+.ph-img img{transition:transform 600ms var(--spring)}
+@media(hover:hover){.ph-tile:hover .ph-img img{transform:scale(1.04)}}
+.ph-x{-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);background:rgba(10,12,16,.6);border-color:rgba(255,255,255,.3)}
+.ph-none{border-radius:var(--r-s)}
+.anx-t{border-radius:5px;background:linear-gradient(180deg,color-mix(in srgb,var(--ink) 80%,var(--surface)),var(--ink))}
+
+/* ---- diálogos e avisos: vidro ---- */
+dialog.dlg{border:1px solid var(--line);border-radius:var(--r-l);box-shadow:var(--hi),var(--sh-3);background:var(--surface)}
+dialog.dlg::backdrop{background:rgba(8,10,14,.42);-webkit-backdrop-filter:blur(6px) saturate(120%);backdrop-filter:blur(6px) saturate(120%)}
+.toast{background:var(--glass-dark);-webkit-backdrop-filter:blur(18px) saturate(170%);backdrop-filter:blur(18px) saturate(170%);border:1px solid rgba(255,255,255,.12);border-radius:var(--r);box-shadow:0 18px 40px -16px rgba(0,0,0,.6);font-weight:500}
+.toast button{border-radius:var(--r-s);border-color:rgba(255,255,255,.5)}
+.toast button:hover{background:rgba(255,255,255,.12)}
+.toast .bar{background:linear-gradient(90deg,var(--accent),var(--accent-2))}
+
+/* ---- movimento: resposta imediata, retorno por mola ---- */
+.btn,.chip,.rcard,.ap,.seg-b,.iconb,.iconbtn,.userchip,button.pill,.tn-t,.anx-n,.ph-x,.row,.comp,.step{
+  transition:transform var(--d-spring) var(--spring),background-color 160ms var(--ease),border-color 160ms var(--ease),color 160ms var(--ease),box-shadow 240ms var(--ease)}
+.btn:active,.chip:active,.rcard:active,.ap:active,.seg-b:active,.iconb:active,.iconbtn:active,.userchip:active,button.pill:active,.tn-t:active,.ph-x:active,button.brand:active{
+  transform:scale(.965);transition-duration:var(--d-press),160ms,160ms,160ms,240ms;transition-timing-function:ease-out}
+.row:active{transform:scale(.99);transition-duration:var(--d-press);transition-timing-function:ease-out}
+@media(hover:hover){
+  .rcard:hover,.chip:hover:not(.on){transform:translateY(-1px);box-shadow:var(--hi),var(--sh-2)}
+  .btn:not(.ghost):hover{transform:translateY(-1px)}
+  .comp:not(.open):hover{transform:translateY(-1px);box-shadow:var(--hi),var(--sh-3)}
+  .rcard:hover:active,.chip:hover:not(.on):active,.btn:not(.ghost):hover:active{transform:scale(.965)}
+}
+/* o check da escolha é o único que quica */
+.rcard.on.just::after{animation:tick-b 520ms var(--spring-b) both}
+@keyframes tick-b{from{opacity:0;transform:rotate(45deg) scale(.2)}}
+.just{animation:pop-s var(--d-spring) var(--spring)}
+@keyframes pop-s{from{transform:scale(.96)}}
+dialog.dlg[open]{animation:dlg-s var(--d-spring) var(--spring)}
+@keyframes dlg-s{from{opacity:0;transform:translateY(18px) scale(.96);filter:blur(4px)}}
+dialog.dlg[open]::backdrop{animation:fade-in 300ms var(--ease)}
+.toast{animation:toast-s var(--d-spring) var(--spring)}
+@keyframes toast-s{from{opacity:0;transform:translateY(16px) scale(.97);filter:blur(3px)}}
+.comp-body.opening{animation:acc-open 380ms var(--spring)}
+.ws-main.anim-fwd{animation:enter-fwd 380ms var(--spring) both}
+.ws-main.anim-back{animation:enter-back 380ms var(--spring) both}
+
+/* ---- login: o único momento encenado ---- */
+.login-art{position:relative;isolation:isolate;background-color:#05070a;
+  background-image:linear-gradient(rgba(140,180,255,.07) 1px,transparent 1px),linear-gradient(90deg,rgba(140,180,255,.07) 1px,transparent 1px)}
+.login-art::before{content:"";position:absolute;inset:-20%;z-index:-1;background:radial-gradient(40% 35% at 70% 40%,rgba(42,114,255,.38),transparent 70%),radial-gradient(30% 30% at 20% 85%,rgba(106,162,255,.16),transparent 70%);animation:glow-on 1400ms cubic-bezier(.4,0,.2,1) 200ms both}
+.login-art::after{content:"";position:absolute;left:0;right:0;top:0;height:120px;z-index:-1;background:linear-gradient(180deg,transparent,rgba(106,162,255,.16) 60%,rgba(160,200,255,.5) 98%,transparent);opacity:0;animation:scan 1600ms cubic-bezier(.4,0,.2,1) 500ms 1 both;pointer-events:none}
+@keyframes glow-on{from{opacity:0;transform:scale(.9)}}
+@keyframes scan{0%{opacity:0;transform:translateY(-120px)}12%{opacity:1}88%{opacity:.8}100%{opacity:0;transform:translateY(100vh)}}
+.la-word{background:linear-gradient(180deg,#fff 30%,#9fb3cc);-webkit-background-clip:text;background-clip:text;color:transparent}
+.la-word.has-img{background:#fff;-webkit-background-clip:border-box;background-clip:border-box;border-radius:var(--r);box-shadow:0 20px 60px -20px rgba(42,114,255,.6)}
+.login-form{background:var(--surface)}
+.login-form form,.pend{animation:enter-up 520ms var(--spring) 260ms both}
+
+/* ---- tablet e celular ---- */
+@media(max-width:960px){
+  .steps{border-radius:0;padding:4px;background:var(--glass);-webkit-backdrop-filter:blur(20px) saturate(170%);backdrop-filter:blur(20px) saturate(170%);box-shadow:0 1px 0 var(--line),0 10px 24px -18px rgba(16,24,40,.35)}
+  .step{border-bottom:0}
+  .step.cur{box-shadow:inset 0 -3px 0 var(--accent)}
+}
+
+/* ---- acessibilidade ---- */
+@media(prefers-reduced-transparency:reduce){
+  .topbar{background:#0a0c10;-webkit-backdrop-filter:none;backdrop-filter:none}
+  .actionbar,.steps{background:var(--surface);-webkit-backdrop-filter:none;backdrop-filter:none}
+  .toast{background:#0a0c10;-webkit-backdrop-filter:none;backdrop-filter:none}
+  dialog.dlg::backdrop{background:rgba(8,10,14,.66);-webkit-backdrop-filter:none;backdrop-filter:none}
+}
+@media(prefers-contrast:more){
+  :root{--line:#8a8f98;--line-strong:#3c4149}
+  .panel,.comp,.rcard,.chip,.btn,input,select,textarea{border-color:var(--ink)!important}
+  .topbar,.actionbar,.toast{-webkit-backdrop-filter:none;backdrop-filter:none}
+  .actionbar{background:var(--surface)}
+}
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation:none!important;transition:none!important}
+  .btn:active,.chip:active,.rcard:active{transform:none!important}
+}
+@media print{
+  body{background-image:none!important}
+  .panel,.sheet{box-shadow:none!important}
+}
+/* tema escuro: o botão principal é claro, então a sombra fica escura (sem halo branco) e os avisos ganham contraste */
+[data-theme=dark] .btn.primary{box-shadow:inset 0 1px 0 rgba(255,255,255,.6),0 1px 2px rgba(0,0,0,.5),0 10px 22px -12px rgba(0,0,0,.9)}
+[data-theme=dark] .btn.primary:hover{box-shadow:inset 0 1px 0 rgba(255,255,255,.6),0 0 0 3px var(--glow),0 10px 24px -12px rgba(0,0,0,.9)}
+[data-theme=dark] .rcard.on{box-shadow:inset 0 1px 0 rgba(255,255,255,.6),0 0 0 3px var(--glow),0 10px 26px -14px rgba(0,0,0,.9)}
+[data-theme=dark] .toast{background:rgba(34,39,47,.82);border-color:rgba(255,255,255,.14)}

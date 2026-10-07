@@ -1,4 +1,4 @@
-# MINC — Aplicativo de Peritagem v5.5.0
+# MINC — Aplicativo de Peritagem v5.6.0
 
 PWA (HTML + CSS + JavaScript puro) com Supabase. Funciona offline, instala no tablet/notebook e sincroniza na nuvem.
 
@@ -13,9 +13,30 @@ minc-peritagem/
 ├─ supabase/
 │  ├─ schema.sql       ← registro do que foi aplicado no banco (migrações 001 a 008)
 │  └─ functions/admin-users/  ← função segura do servidor (cadastro de usuários)
+├─ tests/            ← teste da sincronização na nuvem (simulador do Supabase)
 ├─ netlify.toml
 └─ DEPLOY-NETLIFY.md   ← passo a passo da publicação
 ```
+
+## Novidades da v5.6.0
+**Providência: só uma por item**
+- Escolher outra providência substitui a anterior; tocar de novo na marcada não desmarca. Vale na aba Componentes e na Estrutura.
+- Item antigo com duas providências mostra um aviso e fica com pendência até ficar só uma.
+
+**Materiais e serviços**
+- **Matéria-prima** só aparece em **Fabricar** e **Substituir**. **Serviço** pode ser adicionado em **qualquer** providência.
+- Em Recuperar e Reutilizar o painel vira "Serviços", só com "Adicionar serviço". Um item com serviço já dispensa atividade.
+- Se um item com matéria-prima muda para Recuperar/Reutilizar, a matéria-prima **não é apagada**: some da tela, do documento e da lista de compras (com aviso) e volta ao escolher Fabricar ou Substituir.
+- No documento, o título se ajusta: "Serviços", "Materiais a comprar" ou "Materiais e serviços a comprar". A lista de compras e o Excel passam a incluir serviços de qualquer providência.
+
+**Tipo de vedação:** nova opção **"Não aplicável"**.
+
+**Visual "Aço & Vidro"**
+- Superfícies claras com brilho fino na borda de cima; barra superior, barra de ações, etapas (tablet) e avisos em vidro fumê.
+- Preto e branco da marca + uma única luz azul de instrumento, só no que está ativo ou em foco (etapa atual, escolha marcada, campo em digitação).
+- Movimento: botões encolhem no toque (96,5 %) e voltam com mola sem quique; cartões sobem levemente no mouse; brilho que atravessa o botão principal; o "check" da escolha marcada é o único que quica; interruptor com mola; diálogos e avisos chegam com mola e o fundo do diálogo desfoca. Login com luz e linha de varredura (uma vez).
+- Acessibilidade: "reduzir movimento" zera as animações; "reduzir transparência" troca o vidro por cor sólida; "aumentar contraste" reforça as bordas. Alvos de toque continuam com 44 px ou mais.
+- O documento de execução (tela, impressão e PDF) não foi alterado.
 
 ## Novidades da v5.5.0
 **Atividades**
