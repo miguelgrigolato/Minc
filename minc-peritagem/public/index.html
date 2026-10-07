@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#000000">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="description" content="MINC - Aplicativo de Peritagem e Recuperação de Equipamentos">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="MINC Peritagem">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/png" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="preload" href="fonts/inter-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="styles.css">
+  <title>MINC | Peritagem</title>
+  <script>try{document.documentElement.dataset.theme=localStorage.getItem('minc_theme')||'light'}catch(e){document.documentElement.dataset.theme='light'}</script>
+</head>
+<body>
+  <div id="app">
+    <div class="topbar"><div class="brand"><span class="wm-b">MINC</span><span class="brand-sub">Peritagem</span></div></div>
+    <div class="boot" aria-busy="true" aria-label="Carregando"><div><div class="sk"></div><div class="sk"></div><div class="sk"></div></div><div class="sk big"></div></div>
+  </div>
+  <div id="toasts" aria-live="polite"></div>
+  <noscript>Este aplicativo precisa de JavaScript para funcionar.</noscript>
+  <script src="config.js" defer></script>
+  <script src="catalogo.js" defer></script>
+  <script src="vendor/supabase.js" defer></script>
+  <script src="vendor/xlsx.mini.min.js" defer></script>
+  <script src="app.js" defer></script>
+</body>
+</html>
