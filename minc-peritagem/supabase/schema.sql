@@ -72,12 +72,14 @@ end $$;
 create trigger processes_touch before update on public.processes
   for each row execute function public.touch_process();
 
--- 3) Fotos: arquivo no Storage (bucket privado), registro aqui.
+-- 3) Fotos e anexos: arquivo no Storage (bucket privado), registro aqui.
+--    Desde a v5.5.0 o caminho é <pasta do processo>/fotos|anexos/<id>.<ext>, onde a pasta é Processo_Pedido_Equipamento_Cliente
+--    (guardada em processes.data->>'pasta'). Documentos: <pasta>/documentos/<id>.pdf|json. Arquivos antigos ficam em <id do processo>/.
 create table public.photos (
   id           text primary key,
   process_id   text not null references public.processes(id) on delete cascade,
   component_id text,                                  -- null = foto do equipamento
-  storage_path text not null,                         -- <id do processo>/<id da foto>.jpg
+  storage_path text not null,                         -- <pasta>/fotos/<id>.jpg ou <pasta>/anexos/<id>.<ext> (antigas: <id do processo>/<id>.jpg)
   name         text,
   created_by   uuid default auth.uid() references auth.users(id),
   created_at   timestamptz not null default now()

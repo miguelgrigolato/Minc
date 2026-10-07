@@ -1,9 +1,9 @@
-/* MINC · Peritagem — service worker v5.4.0
+/* MINC · Peritagem — service worker v5.5.0
    - Pré-cache de todo o app (funciona offline desde a primeira abertura).
    - Código (HTML/CSS/JS/manifest): rede primeiro, com limite de 3 s; cai para o cache se a rede falhar.
      Assim uma nova versão publicada chega sozinha, sem trocar nome de cache manualmente.
    - Fontes, ícones e bibliotecas: cache primeiro. */
-const VERSION = 'minc-peritagem-v5.4.0';
+const VERSION = 'minc-peritagem-v5.5.0';
 const CORE = [
   './', './index.html', './styles.css', './app.js', './config.js', './catalogo.js', './manifest.json',
   './vendor/xlsx.mini.min.js', './vendor/supabase.js', './vendor/jspdf.umd.min.js', './vendor/jspdf.plugin.autotable.min.js',

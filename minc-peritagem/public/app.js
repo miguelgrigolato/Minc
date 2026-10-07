@@ -1,8 +1,8 @@
 'use strict';
-/* MINC · Peritagem — v5.4.0
+/* MINC · Peritagem — v5.5.0
    Organização: utilitários → Store (IndexedDB) → Fotos → Auth → Regras (validação) → Telas → Ações/eventos → Boot */
 
-const APP_VERSION='5.4.0';
+const APP_VERSION='5.5.0';
 
 /* ============================== Utilitários ============================== */
 const $=(s,r=document)=>r.querySelector(s);
@@ -137,19 +137,30 @@ async function toBlob(file){
   c.getContext('2d').drawImage(bmp,0,0,c.width,c.height);bmp.close&&bmp.close();
   return new Promise((ok,no)=>c.toBlob(b=>b?ok(b):no(new Error('blob')),'image/jpeg',.75));
 }
+const IMG_EXT=/\.(jpe?g|png|gif|webp|bmp|heic|heif|avif)$/i,MAX_ANEXO=25*1024*1024;
+const isImg=f=>/^image\//.test(f.type||'')||IMG_EXT.test(f.name||'');
+const fileExt=n=>{const m=/\.([A-Za-z0-9]{1,8})$/.exec(n||'');return m?'.'+m[1].toLowerCase():''};
 async function addPhotos(files,target){
   const r=cur(),list=[...files];if(!r||!list.length)return;
-  const arr=target==='equip'?r.equipmentPhotos:C(target)?.photos;if(!arr)return;
-  const t=toast(`Processando ${list.length} foto(s)…`,{ms:120000});
-  let ok=0,fail=0;const newIds=[];
+  const comp=target==='equip'?null:C(target);if(target!=='equip'&&!comp)return;
+  const arr=comp?comp.photos:r.equipmentPhotos,anx=comp?comp.anexos:r.anexos;
+  const t=toast(`Processando ${list.length} arquivo(s)…`,{ms:120000});
+  let nf=0,na=0,fail=0,big=0;const newIds=[];
   for(const f of list){
-    try{const blob=await toBlob(f),id=uid('IMG');
-      await Store.put('photos',{id,procId:r.id,blob,name:f.name||'foto.jpg',at:Date.now()});
-      Photos.urls.set(id,URL.createObjectURL(blob));arr.push({id,name:f.name||'foto.jpg'});newIds.push(id);ok++}
-    catch(e){console.error(e);fail++}
+    try{
+      if(isImg(f)){const blob=await toBlob(f),id=uid('IMG');
+        await Store.put('photos',{id,procId:r.id,blob,name:f.name||'foto.jpg',at:Date.now()});
+        Photos.urls.set(id,URL.createObjectURL(blob));arr.push({id,name:f.name||'foto.jpg'});newIds.push(id);nf++}
+      else{
+        if(f.size>MAX_ANEXO){big++;continue}
+        const id=uid('ANX'),ext=fileExt(f.name),type=f.type||'application/octet-stream';
+        await Store.put('photos',{id,procId:r.id,blob:f,name:f.name||'arquivo'+ext,at:Date.now(),kind:'file',ext,type});
+        Photos.urls.set(id,URL.createObjectURL(f));anx.push({id,name:f.name||'arquivo'+ext,type,size:f.size,ext});newIds.push('ax-'+id);na++}
+    }catch(e){console.error(e);fail++}
   }
-  t.close();changed(r);S.pulse=newIds.map(id=>'ph-'+id);renderMain();
-  toast(ok?`${ok} foto(s) adicionada(s)${fail?`; ${fail} falhou`:''}.`:'Não foi possível adicionar a foto.');
+  t.close();changed(r);S.pulse=newIds.map(id=>/^ax-/.test(id)?id:'ph-'+id);renderMain();
+  const parts=[nf&&`${nf} foto(s)`,na&&`${na} anexo(s)`].filter(Boolean);
+  toast(parts.length?`${parts.join(' e ')} adicionado(s)${fail+big?`; ${fail+big} não entrou`:''}.`:(big?'Arquivo maior que 25 MB não foi adicionado.':'Não foi possível adicionar o arquivo.'));
 }
 
 /* ============================== Autenticação local ==============================
@@ -236,7 +247,7 @@ function normComp(c){
   c.materials=(c.materials||[]).map(m=>Object.assign({tipo:'mp',raw:'',material:'',dimensao:'',codigo:'',semCadastro:false,peso:'',unit:'pç',qty:'',obs:''},m));
   c.materials.forEach(m=>{m.tipo=m.tipo==='serv'?'serv':'mp';m.semCadastro=!!m.semCadastro});   // folha da estrutura: matéria-prima (mp) ou serviço (serv)
   c.parentId=c.parentId||null;c.codigo=c.codigo||'';c.semCadastro=!!c.semCadastro;c.qtd=c.qtd==null?'':String(c.qtd);c.unid=c.unid||'un';   // posição na árvore da Estrutura
-  c.ops=(c.ops||[]).filter(o=>o.flow!=='Polimento');c.reuse=c.reuse||[];c.photos=c.photos||[];c.noDrawing=!!c.noDrawing;c.obs=c.obs||'';c.servicos=Array.isArray(c.servicos)?c.servicos:[];
+  c.ops=(c.ops||[]).filter(o=>o.flow!=='Polimento');c.reuse=c.reuse||[];c.photos=c.photos||[];c.anexos=Array.isArray(c.anexos)?c.anexos:[];c.noDrawing=!!c.noDrawing;c.obs=c.obs||'';c.servicos=Array.isArray(c.servicos)?c.servicos:[];
   if(!Array.isArray(c.atividades))c.atividades=legacyAtiv(c);
   return c;
 }
@@ -249,7 +260,7 @@ function fixTree(p){
 const newComp=(o={})=>normComp({id:uid('CMP'),name:'',drawing:'',acoes:[],qtd:'1',...o});
 const newLeaf=t=>({tipo:t==='serv'?'serv':'mp',raw:'',material:'',dimensao:'',codigo:'',semCadastro:false,unit:t==='serv'?'un':'pç',qty:'',obs:''});
 function normalize(p){
-  p.equipmentPhotos=p.equipmentPhotos||[];
+  p.equipmentPhotos=p.equipmentPhotos||[];p.anexos=Array.isArray(p.anexos)?p.anexos:[];
   p.components=(p.components||[]).map(normComp);fixTree(p);
   p.embalagem=p.embalagem||{};p.teste=normTeste(p.teste);p.status=p.status||'Rascunho';
   p.plaq=Object.assign({tipo:'',dn:'',pressaoVal:'',pressaoUn:'',temp:'',corpo:'',sede:'',os:'',tag:'',data:''},p.plaq);
@@ -335,7 +346,8 @@ function compIssues(c,no){
   if(precisaMat(c)){let nmp=0,nsv=0;c.materials.forEach(m=>{const sv=m.tipo==='serv',q=p+(sv?'Serviço '+(++nsv):'Matéria-prima '+(++nmp))+' — ';
     if(emp(m.raw))e.push(q+(sv?'Serviço':'Matéria-prima'));if(!sv&&emp(m.material))e.push(q+'Material');if(emp(m.unit))e.push(q+'Unidade');if(!(num(m.qty)>0))e.push(q+'Quantidade')})}
   const acts=c.atividades.filter(a=>a.actId||!emp(a.t));
-  if(!acts.length&&!(precisaMat(c)&&c.materials.length)&&!(serv&&c.servicos.length))e.push(p+'adicione ao menos uma atividade'+(precisaMat(c)?' ou matéria-prima':'')+(serv?' ou serviço externo':''));
+  // Fabricar/Substituir: as atividades são definidas pela Engenharia de Processos, então não são exigidas aqui
+  if(!acts.length&&!precisaMat(c)&&!(serv&&c.servicos.length))e.push(p+'adicione ao menos uma atividade'+(serv?' ou serviço externo':''));
   c.atividades.forEach((a,j)=>{
     if(a.actId){if(a.reqDetail&&emp(a.detail))e.push(`${p}Atividade ${j+1} — informe o detalhe de "${a.act}"`)}
     else if(emp(a.t))e.push(p+'há atividade em branco');
@@ -520,7 +532,12 @@ function workspace(content){
 function photoGrid(list,kind,cid=''){
   return `<div class="ph-grid">${list.length?list.map((p,n)=>`<div class="ph-tile" data-fk="ph-${p.id}"><button class="ph-img" data-act="zoom" data-pid="${p.id}" aria-label="Ampliar foto ${n+1}"><img src="${Photos.url(p.id)}" alt="Foto ${n+1}" loading="lazy"></button><button class="ph-x" data-act="delPhoto" data-kind="${kind}" data-cid="${cid}" data-pid="${p.id}" aria-label="Remover foto ${n+1}">${ic('x')}</button></div>`).join(''):`<div class="ph-none">Nenhuma foto.</div>`}</div>`;
 }
-const photoBtns=t=>`<div class="actions"><button class="btn" data-act="pickPhoto" data-cap="1" data-t="${t}">${ic('camera')}Tirar foto</button><button class="btn" data-act="pickPhoto" data-t="${t}">${ic('image')}Galeria</button></div>`;
+const photoBtns=t=>`<div class="actions"><button class="btn" data-act="pickPhoto" data-cap="1" data-t="${t}">${ic('camera')}Tirar foto</button><button class="btn" data-act="pickAnexo" data-t="${t}">${ic('doc')}Anexos</button></div>`;
+const anexLabel=a=>(fileExt(a.name)||a.ext||'').replace('.','').toUpperCase()||'ARQ';
+function anexList(list,kind,cid=''){
+  if(!list.length)return '';
+  return `<ul class="anx-list" aria-label="Arquivos anexados">${list.map(a=>`<li class="anx" data-fk="ax-${a.id}"><span class="anx-t">${esc(anexLabel(a))}</span><button class="anx-n" data-act="openAnexo" data-pid="${a.id}" data-nm="${esc(a.name)}" data-ty="${esc(a.type||'')}" title="Abrir ${esc(a.name)}"><b>${esc(a.name)}</b><small>${a.size?kb(a.size):''}</small></button><button class="iconb" data-act="delAnexo" data-kind="${kind}" data-cid="${cid}" data-pid="${a.id}" aria-label="Remover ${esc(a.name)}">${ic('trash')}</button></li>`).join('')}</ul>`;
+}
 const fmtISO=v=>{const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(String(v||''));return m?`${m[3]}/${m[2]}/${m[1]}`:(v||'')};
 /* campo genérico: scope 'p' = dado do processo, 'plaq' = dados da plaqueta */
 function fldS(scope,k,label,v,o={}){
@@ -530,11 +547,11 @@ function fldS(scope,k,label,v,o={}){
 function vProcess(){
   const r=cur(),q=r.plaq;
   return `<div class="ph"><h1>Informações do processo</h1><p>Identificação, dados do documento, dados técnicos e fotos do equipamento ainda montado.</p></div>
-<div class="panel"><h2>Identificação</h2><div class="grid g3">${fld('Processo','process',r.process)}${fld('Pedido','pedido',r.pedido)}${fld('Ordem <span class="muted">(opcional)</span>','ordem',r.ordem)}${fld('Equipamento','equipamento',r.equipamento)}${fld('Cliente','cliente',r.cliente)}<div class="field"><span class="lbl" id="l-status">Status</span><div class="seg" role="radiogroup" aria-labelledby="l-status">${STATUS.map(s=>`<button type="button" class="seg-b ${r.status===s?'on':''}" role="radio" aria-checked="${r.status===s}" data-act="status" data-v="${s}" data-fk="st-${s}"><i class="dot ${stCls[s]}"></i>${s}</button>`).join('')}</div></div></div><div class="field"><label for="f-observacoes">Observações <span class="muted">(opcional)</span></label><textarea id="f-observacoes" data-inp="p" data-k="observacoes">${esc(r.observacoes)}</textarea></div></div>
+<div class="panel"><h2>Identificação</h2><p class="hint pasta-note">${r.pasta?`Pasta na nuvem: <code>${esc(r.pasta)}</code>`:'A pasta deste processo na nuvem (Processo + Pedido + Equipamento + Cliente) é criada quando esses quatro campos estiverem preenchidos.'}</p><div class="grid g3">${fld('Processo','process',r.process)}${fld('Pedido','pedido',r.pedido)}${fld('Ordem <span class="muted">(opcional)</span>','ordem',r.ordem)}${fld('Equipamento','equipamento',r.equipamento)}${fld('Cliente','cliente',r.cliente)}<div class="field"><span class="lbl" id="l-status">Status</span><div class="seg" role="radiogroup" aria-labelledby="l-status">${STATUS.map(s=>`<button type="button" class="seg-b ${r.status===s?'on':''}" role="radio" aria-checked="${r.status===s}" data-act="status" data-v="${s}" data-fk="st-${s}"><i class="dot ${stCls[s]}"></i>${s}</button>`).join('')}</div></div></div><div class="field"><label for="f-observacoes">Observações <span class="muted">(opcional)</span></label><textarea id="f-observacoes" data-inp="p" data-k="observacoes">${esc(r.observacoes)}</textarea></div></div>
 <div class="panel"><h2>Documento de execução</h2><p class="hint">Cabeçalho e assinaturas do formulário ${esc(FORM.codigo)}. Todos os campos são opcionais.</p><div class="grid g3">${fldS('p','nomus','Peritagem Nomus',r.nomus)}${fldS('p','dataDoc','Data do documento',r.dataDoc,{type:'date'})}${fldS('p','revisao','Revisão',r.revisao)}</div>${fldS('p','motivoRevisao','Motivo da revisão',r.motivoRevisao)}<div class="grid g4">${fldS('p','elaboradoPor','Elaborado por',r.elaboradoPor)}${fldS('p','elaboradoData','Data da elaboração',r.elaboradoData,{type:'date'})}${fldS('p','aprovadoPor','Aprovado por',r.aprovadoPor)}${fldS('p','aprovadoData','Data da aprovação',r.aprovadoData,{type:'date'})}</div></div>
 <div class="panel"><h2>Informações técnicas</h2><div class="field"><span class="lbl">Tipo de vedação</span>${rcards(VEDACAO,r.vedacao,'set','data-k="vedacao"','g2')}</div><div class="field"><span class="lbl">Acionamento</span>${rcards(withLegacy(ACIONAMENTO,r.acionamento),r.acionamento,'set','data-k="acionamento"','g4')}</div><div class="grid g3">${fld('Fluido de trabalho <span class="muted">(opcional)</span>','fluido',r.fluido)}</div></div>
 <div class="panel"><h2>Dados da plaqueta de identificação</h2><p class="hint">Opcional. Preencha o que será gravado na plaqueta; só o que for informado aparece no documento.</p><div class="grid g4">${fldS('plaq','tipo','Equipamento',q.tipo)}${fldS('plaq','dn','DN',q.dn,{keep:true})}${fldS('plaq','os','O.S.',q.os)}${fldS('plaq','tag','TAG',q.tag)}</div><div class="grid g4">${fldS('plaq','data','Data do reparo',q.data,{type:'date'})}</div></div>
-<div class="panel"><div class="ph-bar"><div><h2 style="margin:0">Imagens do equipamento</h2><span class="ph-count">${r.equipmentPhotos.length} de 4 fotos recomendadas, com o equipamento ainda montado.</span></div>${photoBtns('equip')}</div>${photoGrid(r.equipmentPhotos,'equip')}</div>`;
+<div class="panel"><div class="ph-bar"><div><h2 style="margin:0">Imagens do equipamento</h2><span class="ph-count">${r.equipmentPhotos.length} de 4 fotos recomendadas, com o equipamento ainda montado. ${r.anexos.length?`${r.anexos.length} anexo(s).`:'Use “Anexos” para PDF e outros arquivos.'}</span></div>${photoBtns('equip')}</div>${photoGrid(r.equipmentPhotos,'equip')}${anexList(r.anexos,'equip')}</div>`;
 }
 
 /* ---------- 2. Componentes ---------- */
@@ -563,7 +580,7 @@ function vComp(c,no,lvl=0){
 <div class="field"><span class="lbl">Providência <span class="muted">(pode escolher mais de uma)</span></span>${provCards(c)}</div>
 ${c.acoes.includes('Serviço externo')?vServ(c):''}${precisaMat(c)?vMats(c):''}${vAtivs(c)}${vSubs(c,no)}
 <div class="field"><label for="co-${id}">Observação do item <span class="muted">(opcional)</span></label><textarea id="co-${id}" rows="2" data-inp="c" data-cid="${id}" data-k="obs">${esc(c.obs)}</textarea></div>
-<div class="field"><div class="ph-bar"><span class="lbl" style="margin:0">Fotos do componente (${c.photos.length})</span>${photoBtns(id)}</div>${photoGrid(c.photos,'comp',id)}</div>
+<div class="field"><div class="ph-bar"><span class="lbl" style="margin:0">Fotos do componente (${c.photos.length})</span>${photoBtns(id)}</div>${photoGrid(c.photos,'comp',id)}${anexList(c.anexos,'comp',id)}</div>
 <div class="comp-foot"><button class="btn danger" data-act="delComp" data-cid="${id}">${ic('trash')}Excluir componente</button></div></div></div>`:''}</article>`;
 }
 function vAtivs(c){
@@ -571,14 +588,14 @@ function vAtivs(c){
   const lastSec=c.atividades.length?c.atividades[c.atividades.length-1].sectorId:null;
   const sel=secs.find(x=>x.id===S.sec[c.id])||secs.find(x=>x.id===lastSec)||secs[0];
   const acts=sel?sel.activities.filter(a=>a.active).sort(byPos):[];
-  const bad=S.errs&&!c.atividades.some(a=>a.actId||!emp(a.t))&&!(precisaMat(c)&&c.materials.length)&&!(c.acoes.includes('Serviço externo')&&c.servicos.length);
+  const bad=S.errs&&!precisaMat(c)&&!c.atividades.some(a=>a.actId||!emp(a.t))&&!(c.acoes.includes('Serviço externo')&&c.servicos.length);
   const nSec=x=>c.atividades.filter(l=>l.actId&&(l.sectorId===x.id||l.sector===x.name)).length;
   const line=(a,j)=>{
     const btns=`<span class="ativ-b"><button class="iconb" data-act="moveAtiv" data-cid="${c.id}" data-aid="${a.id}" data-dir="-1" aria-label="Subir atividade ${j+1}" ${j===0?'disabled':''}>${ic('up')}</button><button class="iconb" data-act="moveAtiv" data-cid="${c.id}" data-aid="${a.id}" data-dir="1" aria-label="Descer atividade ${j+1}" ${j===c.atividades.length-1?'disabled':''}>${ic('chev')}</button><button class="iconb" data-act="delAtiv" data-cid="${c.id}" data-aid="${a.id}" aria-label="Excluir atividade ${j+1}">${ic('trash')}</button></span>`;
     if(a.actId)return `<li class="ativ"><span class="ativ-n">${j+1}</span><div class="ativ-m"><div class="ativ-h"><span class="badge sec">${esc(a.sector)}</span><b>${esc(a.act)}</b></div><input id="at-${a.id}" class="${S.errs&&a.reqDetail&&emp(a.detail)?'invalid':''}" value="${esc(a.detail)}" data-inp="ativ" data-k="detail" data-cid="${c.id}" data-aid="${a.id}" placeholder="${a.reqDetail?'Detalhe (obrigatório)':'Detalhe (opcional)'}" aria-label="Detalhe da atividade ${j+1}" autocomplete="off"></div>${btns}</li>`;
     return `<li class="ativ"><span class="ativ-n">${j+1}</span><div class="ativ-m"><div class="ativ-h"><span class="badge sec old">Sem setor (anterior)</span></div><input id="at-${a.id}" class="${S.errs&&emp(a.t)?'invalid':''}" value="${esc(a.t)}" data-inp="ativ" data-k="t" data-cid="${c.id}" data-aid="${a.id}" placeholder="Descreva a atividade" aria-label="Atividade ${j+1}" autocomplete="off"></div>${btns}</li>`;
   };
-  return `<div class="subpanel${bad?' invalid-group':''}"><h3>Atividades</h3><p class="hint">Escolha o setor e toque nas atividades que serão executadas. Um item pode ter atividades de vários setores.</p>${secs.length?`<div class="field"><span class="lbl" id="l-sec-${c.id}">Setor</span><div class="chips" role="radiogroup" aria-labelledby="l-sec-${c.id}">${secs.map(x=>{const n=nSec(x),on=sel&&sel.id===x.id;return `<button class="chip ${on?'on':''}" role="radio" aria-checked="${on}" data-act="pickSector" data-cid="${c.id}" data-sid="${esc(x.id)}" data-fk="sc-${c.id}-${esc(x.id)}">${esc(x.name)}${n?` <span class="cnt">${n}</span>`:''}</button>`}).join('')}</div></div><div class="field"><span class="lbl">Atividades de ${esc(sel.name)}</span>${acts.length?`<div class="chips cat" role="group">${acts.map(a=>{const on=c.atividades.some(l=>sameAct(l,sel,a));return `<button class="chip ${on?'on':''}" role="checkbox" aria-checked="${on}" data-act="toggleAct" data-cid="${c.id}" data-sid="${esc(sel.id)}" data-aid="${esc(a.id)}" data-fk="ta-${c.id}-${esc(a.id)}">${on?ic('check','ic sm'):ic('plus','ic sm')}${esc(a.name)}</button>`}).join('')}</div>`:'<p class="hint">Este setor ainda não tem atividades cadastradas.</p>'}</div>`:'<p class="hint">Nenhum setor cadastrado.</p>'}${c.atividades.length?`<ol class="ativs">${c.atividades.map(line).join('')}</ol>`:'<p class="hint">Nenhuma atividade escolhida.</p>'}</div>`;
+  return `<div class="subpanel${bad?' invalid-group':''}"><h3>Atividades${precisaMat(c)?' <span class="muted">(opcional)</span>':''}</h3><p class="hint">${precisaMat(c)?'Para Fabricar ou Substituir não é preciso escolher atividades: elas são definidas pela Engenharia de Processos. ':''}Escolha o setor e toque nas atividades que serão executadas. Um item pode ter atividades de vários setores.</p>${secs.length?`<div class="field"><span class="lbl" id="l-sec-${c.id}">Setor</span><div class="chips" role="radiogroup" aria-labelledby="l-sec-${c.id}">${secs.map(x=>{const n=nSec(x),on=sel&&sel.id===x.id;return `<button class="chip ${on?'on':''}" role="radio" aria-checked="${on}" data-act="pickSector" data-cid="${c.id}" data-sid="${esc(x.id)}" data-fk="sc-${c.id}-${esc(x.id)}">${esc(x.name)}${n?` <span class="cnt">${n}</span>`:''}</button>`}).join('')}</div></div><div class="field"><span class="lbl">Atividades de ${esc(sel.name)}</span>${acts.length?`<div class="chips cat" role="group">${acts.map(a=>{const on=c.atividades.some(l=>sameAct(l,sel,a));return `<button class="chip ${on?'on':''}" role="checkbox" aria-checked="${on}" data-act="toggleAct" data-cid="${c.id}" data-sid="${esc(sel.id)}" data-aid="${esc(a.id)}" data-fk="ta-${c.id}-${esc(a.id)}">${on?ic('check','ic sm'):ic('plus','ic sm')}${esc(a.name)}</button>`}).join('')}</div>`:'<p class="hint">Este setor ainda não tem atividades cadastradas.</p>'}</div>`:'<p class="hint">Nenhum setor cadastrado.</p>'}${c.atividades.length?`<ol class="ativs">${c.atividades.map(line).join('')}</ol>`:'<p class="hint">Nenhuma atividade escolhida.</p>'}</div>`;
 }
 function vServ(c){
   const svs=Catalog.services(),bad=S.errs&&!c.servicos.length;
@@ -921,7 +938,7 @@ function vAdmin(){
   if(CLOUD)return vAdminCloud();
   const us=Auth.list();
   return `<div class="ph"><button class="btn ghost" data-act="home">${ic('back')}Voltar</button><h1>Administração</h1><p>Usuários com acesso a este aparelho.</p></div>
-<div class="panel"><h2>Novo usuário</h2><form data-submit="newUser"><div class="grid g4"><div class="field"><label for="un">Nome</label><input id="un" name="name" required></div><div class="field"><label for="ul">Login</label><input id="ul" name="login" required data-keep-case autocapitalize="off"></div><div class="field"><label for="up">Senha temporária</label><input id="up" name="pw" type="password" required minlength="6" autocomplete="new-password"></div><div class="field"><label for="ur">Perfil</label><select id="ur" name="role"><option>Funcionário</option><option>Administrador</option></select></div></div><p class="hint">O usuário troca a senha no primeiro acesso. O controle de acesso é local, neste aparelho; perfis e auditoria centralizados dependem do banco de dados central.</p><button class="btn primary" type="submit">Cadastrar usuário</button></form></div>
+<div class="panel"><h2>Novo usuário</h2><form data-submit="newUser"><div class="grid g4"><div class="field"><label for="un">Nome</label><input id="un" name="name" required autocomplete="off"><label class="switch name-caps"><input type="checkbox" name="caps" id="un-caps" data-chg="nameCaps" checked><span class="track"></span><span>Nome em CAIXA ALTA</span></label></div><div class="field"><label for="ul">Login</label><input id="ul" name="login" required data-keep-case autocapitalize="off"></div><div class="field"><label for="up">Senha temporária</label><input id="up" name="pw" type="password" required minlength="6" autocomplete="new-password"></div><div class="field"><label for="ur">Perfil</label><select id="ur" name="role"><option>Funcionário</option><option>Administrador</option></select></div></div><p class="hint">O usuário troca a senha no primeiro acesso. O controle de acesso é local, neste aparelho; perfis e auditoria centralizados dependem do banco de dados central.</p><button class="btn primary" type="submit">Cadastrar usuário</button></form></div>
 <div class="panel"><div class="tw"><table class="tbl"><thead><tr><th>Nome</th><th>Login</th><th>Perfil</th><th></th></tr></thead><tbody>${us.map(u=>`<tr><td>${esc(u.name)}</td><td>${esc(u.login)}</td><td>${esc(u.role)}</td><td><div class="actions"><button class="btn" data-act="resetPw" data-id="${u.id}">Redefinir senha</button>${u.login==='admin'||u.id===S.user.id?'':`<button class="btn danger" data-act="delUser" data-id="${u.id}">Excluir</button>`}</div></td></tr>`).join('')}</tbody></table></div></div>`;
 }
 
@@ -987,7 +1004,7 @@ function vAdminCloud(){
   if(S.adminTab==='catalog')return adminHead()+vCatalogAdmin();
   const a=S.admin||{};
   const opts=[['admin','Administrador'],['operador','Funcionário'],['pendente','Aguardando aprovação']];
-  const novo=`<div class="panel"><h2>Novo usuário</h2><p class="hint">A pessoa recebe um convite e define a própria senha. Você nunca vê nem define a senha de ninguém.</p><form data-submit="inviteUser"><div class="grid g4"><div class="field"><label for="nu-name">Nome</label><input id="nu-name" name="name" required minlength="2" autocomplete="off"></div><div class="field"><label for="nu-email">E-mail</label><input id="nu-email" name="email" type="email" required data-keep-case autocapitalize="off" autocomplete="off"></div><div class="field"><label for="nu-role">Perfil</label><select id="nu-role" name="role"><option value="operador">Funcionário</option><option value="admin">Administrador</option></select></div><div class="field"><label for="nu-mode">Como enviar o acesso</label><select id="nu-mode" name="mode"><option value="email">Enviar convite por e-mail</option><option value="link">Gerar link para eu enviar</option></select></div></div><button class="btn primary" type="submit">${ic('plus')}Cadastrar usuário</button></form></div>`;
+  const novo=`<div class="panel"><h2>Novo usuário</h2><p class="hint">A pessoa recebe um convite e define a própria senha. Você nunca vê nem define a senha de ninguém.</p><form data-submit="inviteUser"><div class="grid g4"><div class="field"><label for="nu-name">Nome</label><input id="nu-name" name="name" required minlength="2" autocomplete="off"><label class="switch name-caps"><input type="checkbox" name="caps" id="nu-caps" data-chg="nameCaps" checked><span class="track"></span><span>Nome em CAIXA ALTA</span></label></div><div class="field"><label for="nu-email">E-mail</label><input id="nu-email" name="email" type="email" required data-keep-case autocapitalize="off" autocomplete="off"></div><div class="field"><label for="nu-role">Perfil</label><select id="nu-role" name="role"><option value="operador">Funcionário</option><option value="admin">Administrador</option></select></div><div class="field"><label for="nu-mode">Como enviar o acesso</label><select id="nu-mode" name="mode"><option value="email">Enviar convite por e-mail</option><option value="link">Gerar link para eu enviar</option></select></div></div><button class="btn primary" type="submit">${ic('plus')}Cadastrar usuário</button></form></div>`;
   const tabela=!a.rows?'<div class="sk" style="height:120px"></div>':a.err?`<div class="errbox">${esc(a.err)}</div>`:`<div class="tw"><table class="tbl"><thead><tr><th>Nome</th><th>E-mail</th><th>Perfil</th><th>Status</th><th>Acesso</th></tr></thead><tbody>${a.rows.map(u=>{const me=u.id===S.user.id;return `<tr class="${u.status==='bloqueado'?'off-row':''}"><td>${esc(u.name)}</td><td>${esc(u.email)}</td><td><select aria-label="Perfil de ${esc(u.name)}" data-chg="role" data-id="${u.id}" ${me?'disabled':''}>${opts.map(([v,l])=>`<option value="${v}" ${u.role===v?'selected':''}>${l}</option>`).join('')}</select></td><td>${me?'<span class="badge st-green">Você</span>':`<label class="switch"><input type="checkbox" data-chg="userStatus" data-id="${u.id}" data-name="${esc(u.name)}" ${u.status==='ativo'?'checked':''}><span class="track"></span><span>${u.status==='ativo'?'Ativo':'Bloqueado'}</span></label>`}</td><td><div class="actions"><button class="btn" data-act="userResend" data-id="${u.id}" data-mode="email">Reenviar acesso</button><button class="btn" data-act="userResend" data-id="${u.id}" data-mode="link">Gerar link</button></div></td></tr>`}).join('')}</tbody></table></div>`;
   const hist=(a.audit||[]).length?`<div class="panel"><h2>Últimas ações</h2><ul class="audit">${a.audit.map(x=>`<li><b>${esc(x.action)}</b> ${esc(x.target_email||'')} <small>por ${esc(x.actor_email||'')} em ${fmt(x.at)}</small></li>`).join('')}</ul></div>`:'';
   return `${adminHead()}${novo}<div class="panel"><h2>Usuários</h2><p class="hint">Perfil “Aguardando aprovação” e usuários bloqueados não acessam nenhum dado. Todas as alterações passam por uma função segura no servidor e ficam registradas.</p>${tabela}</div>${hist}`;
@@ -1023,7 +1040,25 @@ async function catWrite(fn){
 }
 
 /* ---- conversão processo local <-> linha do banco ---- */
-const photoRefs=p=>[...p.equipmentPhotos.map(x=>({...x,cid:null})),...p.components.flatMap(c=>c.photos.map(x=>({...x,cid:c.id})))];
+const photoRefs=p=>[...p.equipmentPhotos.map(x=>({...x,cid:null})),...p.anexos.map(x=>({...x,cid:null,file:true})),...p.components.flatMap(c=>[...c.photos.map(x=>({...x,cid:c.id})),...c.anexos.map(x=>({...x,cid:c.id,file:true}))])];
+
+/* ---- pasta do processo na nuvem: Processo + Pedido + Equipamento + Cliente ----
+   Tudo do processo (fotos, anexos, documentos arquivados) fica dentro dela. O nome é fixado na primeira vez em que algo
+   é enviado (guardado em p.pasta, vai junto com o processo) e só nasce com os quatro campos preenchidos. Arquivos antigos
+   continuam em <id do processo>/ e seguem sendo lidos de lá. */
+function folderName(p){
+  const parts=[p.process,p.pedido,p.equipamento,p.cliente].map(v=>slug(v,40));
+  return parts.every(Boolean)?parts.join('_'):null;
+}
+function ensureFolder(p){
+  if(p.pasta)return p.pasta;
+  const f=folderName(p);if(!f)return null;
+  p.pasta=f;p._dirty=true;Store.put('processes',p).catch(()=>{});Sync.kick(1500);
+  return f;
+}
+const anexExt=r=>/^\.[a-z0-9]{1,8}$/.test(r.ext||'')?r.ext:'';
+const cloudPath=(pasta,r)=>r.file||r.kind==='file'?`${pasta}/anexos/${r.id}${anexExt(r)}`:`${pasta}/fotos/${r.id}.jpg`;
+const legacyPath=(pid,r)=>`${pid}/${r.id}.jpg`;
 function toRow(p){
   const data={};for(const k of Object.keys(p))if(!k.startsWith('_'))data[k]=p[k];
   return{id:p.id,process_no:p.process||null,pedido:p.pedido||null,ordem:p.ordem||null,equipamento:p.equipamento||null,cliente:p.cliente||null,status:p.status,deleted_at:p.deletedAt||null,data};
@@ -1034,7 +1069,11 @@ function fromRow(r){
   return normalize(o);
 }
 function replaceLocal(loc,n){Object.keys(loc).forEach(k=>delete loc[k]);Object.assign(loc,n)}
-function queuePhotoDelete(rec){let q=[];try{q=JSON.parse(localStorage.getItem('minc_photo_del'))||[]}catch{}q.push({id:rec.id,path:`${rec.procId}/${rec.id}.jpg`});localStorage.setItem('minc_photo_del',JSON.stringify(q))}
+function queuePhotoDelete(rec){
+  let q=[];try{q=JSON.parse(localStorage.getItem('minc_photo_del'))||[]}catch{}
+  const p=PROCS.find(x=>x.id===rec.procId),paths=[legacyPath(rec.procId,rec)];
+  if(p&&p.pasta)paths.push(cloudPath(p.pasta,rec));
+  q.push({id:rec.id,path:paths});localStorage.setItem('minc_photo_del',JSON.stringify(q))}
 
 /* ---- motor de sincronização: local primeiro, nuvem depois ---- */
 const Sync={
@@ -1134,8 +1173,9 @@ const Sync={
       const p=PROCS.find(x=>x.id===rec.procId);
       if(!p||p._rev==null||p.deletedAt)continue;                       // o processo ainda não existe na nuvem
       const ref=photoRefs(p).find(x=>x.id===rec.id);if(!ref)continue;   // foto removida
-      const path=`${p.id}/${rec.id}.jpg`;
-      const u=await SB.storage.from(BUCKET).upload(path,rec.blob,{contentType:'image/jpeg',upsert:false});
+      const pasta=ensureFolder(p);if(!pasta)continue;                  // sem Processo/Pedido/Equipamento/Cliente ainda: espera no aparelho
+      const path=cloudPath(pasta,{...rec,file:!!ref.file});
+      const u=await SB.storage.from(BUCKET).upload(path,rec.blob,{contentType:ref.file?(rec.type||'application/octet-stream'):'image/jpeg',upsert:false});
       if(u.error&&!/exist|duplicate/i.test(u.error.message||''))throw u.error;
       const r=await SB.from('photos').insert({id:rec.id,process_id:p.id,component_id:ref.cid,storage_path:path,name:ref.name});
       if(r.error&&r.error.code!=='23505')throw r.error;
@@ -1148,7 +1188,8 @@ const Sync={
     for(const rec of (await Store.all('docs')).filter(d=>!d.up)){
       const p=PROCS.find(x=>x.id===rec.procId);
       if(!p||p._rev==null||p.deletedAt)continue;                       // o processo ainda não existe na nuvem
-      const base=`${rec.procId}/${rec.id}`,okDup=e=>e&&!/exist|duplicate/i.test(e.message||'');
+      const pasta=ensureFolder(p);if(!pasta)continue;
+      const base=`${pasta}/documentos/${rec.id}`,okDup=e=>e&&!/exist|duplicate/i.test(e.message||'');
       const f1=await SB.storage.from(DOCS_BUCKET).upload(base+'.pdf',new Blob([rec.bytes],{type:'application/pdf'}),{contentType:'application/pdf',upsert:false});if(okDup(f1.error))throw f1.error;
       const f2=await SB.storage.from(DOCS_BUCKET).upload(base+'.json',new Blob([rec.snapshot],{type:'application/json'}),{contentType:'application/json',upsert:false});if(okDup(f2.error))throw f2.error;
       const ins=await SB.from('process_documents').insert({id:rec.id,process_id:rec.procId,storage_path:base+'.pdf',snapshot_path:base+'.json',file_name:rec.fileName,size_bytes:rec.size,sha256:rec.sha256,form_code:rec.formCode,form_rev:rec.formRev,process_rev:rec.processRev,note:rec.note||null,generated_by_name:rec.byName}).select('version').single();
@@ -1162,9 +1203,10 @@ const Sync={
     for(const p of PROCS.filter(x=>!x.deletedAt)){
       for(const ref of photoRefs(p)){
         if(have.has(ref.id))continue;if(n>=25)return n>0;
-        const r=await SB.storage.from(BUCKET).download(`${p.id}/${ref.id}.jpg`);
+        let r=p.pasta?await SB.storage.from(BUCKET).download(cloudPath(p.pasta,ref)):{error:true};
+        if((r.error||!r.data)&&!ref.file)r=await SB.storage.from(BUCKET).download(legacyPath(p.id,ref));   // arquivos de antes das pastas
         if(r.error||!r.data)continue;                                   // quem criou ainda não enviou
-        await Store.put('photos',{id:ref.id,procId:p.id,blob:r.data,name:ref.name,at:Date.now(),up:true});
+        await Store.put('photos',{id:ref.id,procId:p.id,blob:r.data,name:ref.name,at:Date.now(),up:true,...(ref.file?{kind:'file',ext:ref.ext,type:ref.type}:{})});
         Photos.urls.set(ref.id,URL.createObjectURL(r.data));have.add(ref.id);n++;
       }
     }
@@ -1173,7 +1215,7 @@ const Sync={
   async remoteDeletes(){
     let q=[];try{q=JSON.parse(localStorage.getItem('minc_photo_del'))||[]}catch{}
     if(!q.length)return;
-    const a=await SB.storage.from(BUCKET).remove(q.map(x=>x.path));if(a.error)throw a.error;
+    const a=await SB.storage.from(BUCKET).remove(q.flatMap(x=>[].concat(x.path)));if(a.error)throw a.error;
     const b=await SB.from('photos').delete().in('id',q.map(x=>x.id));if(b.error)throw b.error;
     localStorage.removeItem('minc_photo_del');
   },
@@ -1312,6 +1354,26 @@ const ACT={
   status(el){const r=cur(),v=el.dataset.v;if(v==='Concluído'&&VALIDATED.some(k=>check(k).length)){const g=el.closest?.('.seg');if(g&&!RM()){g.classList.remove('shake');void g.offsetWidth;g.classList.add('shake')}toast('Não é possível concluir: há campos obrigatórios pendentes.');return}r.status=v;changed();renderMain()},
   set(el){cur()[el.dataset.k]=el.dataset.v;changed();renderMain()},
   pickPhoto(el){const i=document.createElement('input');i.type='file';i.accept='image/*';i.multiple=true;if(el.dataset.cap)i.setAttribute('capture','environment');i.onchange=()=>addPhotos(i.files,el.dataset.t);i.click()},
+  pickAnexo(el){
+    const t=el.dataset.t;
+    dialog(`<div class="dlg-body"><h2>Anexos</h2><p>De onde você quer anexar?</p><div class="actions col"><button class="btn" data-act="anexFrom" data-w="gal" data-t="${t}">${ic('image')}Galeria de fotos</button><button class="btn" data-act="anexFrom" data-w="arq" data-t="${t}">${ic('doc')}Arquivos (PDF, Word, Excel, desenhos…)</button><button class="btn ghost" data-act="closeDlg">Cancelar</button></div></div>`);
+  },
+  anexFrom(el){
+    const {w,t}=el.dataset,i=document.createElement('input');i.type='file';i.multiple=true;
+    i.accept=w==='gal'?'image/*':'.pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,.ppt,.pptx,.dwg,.dxf,.zip,.rar,.7z,application/pdf,image/*';
+    i.onchange=()=>{addPhotos(i.files,t)};ACT.closeDlg(el);i.click();
+  },
+  openAnexo(el){
+    const u=Photos.url(el.dataset.pid);if(!u){toast('O arquivo ainda não foi baixado neste aparelho. Aguarde a sincronização.');return}
+    const a=document.createElement('a');a.href=u;a.download=el.dataset.nm||'arquivo';
+    if(/pdf|image\//.test(el.dataset.ty||'')){a.target='_blank';a.rel='noopener';a.removeAttribute('download')}
+    document.body.append(a);a.click();a.remove();
+  },
+  delAnexo(el){
+    const {kind,cid,pid}=el.dataset,r=cur(),arr=kind==='equip'?r.anexos:C(cid)?.anexos;if(!arr)return;
+    const i=arr.findIndex(p=>p.id===pid);if(i<0)return;const [p]=arr.splice(i,1);changed(r);renderMain();
+    toast('Anexo removido.',{label:'Desfazer',ms:7000,action:()=>{arr.splice(i,0,p);changed(r);renderMain()},onExpire:()=>Photos.drop(p.id)});
+  },
   zoom(el){dialog(`<div class="lb-body"><img src="${Photos.url(el.dataset.pid)}" alt="Foto ampliada"><button class="btn primary" data-act="closeDlg" autofocus>Fechar</button></div>`,{cls:'lb'})},
   delPhoto(el){
     const {kind,cid,pid}=el.dataset,r=cur(),arr=kind==='equip'?r.equipmentPhotos:C(cid)?.photos;if(!arr)return;
@@ -1453,6 +1515,7 @@ const INP={
   tx(el){T().extras[+el.dataset.j][el.dataset.k]=el.value;changed()}
 };
 const CHG={
+  nameCaps(el){const n=el.form&&el.form.elements.name;if(n&&el.checked)n.value=n.value.toUpperCase()},
   m(el){const c=C(el.dataset.cid);c.materials[+el.dataset.j][el.dataset.k]=el.value;changed();liveComp(el.dataset.cid)},
   c(el){C(el.dataset.cid)[el.dataset.k]=el.value;changed()},
   cchk(el){C(el.dataset.g).semCadastro=el.checked;changed();renderMain()},
@@ -1568,6 +1631,7 @@ document.addEventListener('submit',e=>{const f=e.target.closest('[data-submit]')
 /* Maiúsculas em campos de texto (login, senha, busca e pressões ficam fora via data-keep-case). Roda antes dos handlers. */
 document.addEventListener('input',e=>{
   const t=e.target;if(!(t.tagName==='TEXTAREA'||(t.tagName==='INPUT'&&t.type==='text'))||'keepCase' in t.dataset)return;
+  if(t.name==='name'&&t.form&&t.form.elements.caps&&!t.form.elements.caps.checked)return;   // cadastro de usuário: caixa alta é opcional
   const v=t.value,u=v.toUpperCase();if(v!==u){const a=t.selectionStart,b=t.selectionEnd;t.value=u;try{t.setSelectionRange(a,b)}catch{}}
 },true);
 document.addEventListener('input',e=>{const el=e.target.closest('[data-inp]');if(!el)return;INP[el.dataset.inp]?.(el);if(el.classList.contains('invalid')&&!emp(el.value))el.classList.remove('invalid')});
@@ -1598,7 +1662,7 @@ async function migrateLegacy(){
   else toast(`Migração parcial: ${fail} foto(s) não puderam ser convertidas. Os dados antigos foram mantidos.`,{ms:8000});
 }
 async function gc(){
-  const keep=new Set();PROCS.forEach(p=>{p.equipmentPhotos.forEach(x=>keep.add(x.id));p.components.forEach(c=>c.photos.forEach(x=>keep.add(x.id)))});
+  const keep=new Set();PROCS.forEach(p=>{[...p.equipmentPhotos,...p.anexos].forEach(x=>keep.add(x.id));p.components.forEach(c=>[...c.photos,...c.anexos].forEach(x=>keep.add(x.id)))});
   for(const k of await Store.photoKeys())if(!keep.has(k))await Store.del('photos',k).catch(()=>{});
 }
 async function boot(){

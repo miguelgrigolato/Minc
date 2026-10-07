@@ -1,4 +1,4 @@
-# MINC — Aplicativo de Peritagem v5.4.0
+# MINC — Aplicativo de Peritagem v5.5.0
 
 PWA (HTML + CSS + JavaScript puro) com Supabase. Funciona offline, instala no tablet/notebook e sincroniza na nuvem.
 
@@ -16,6 +16,23 @@ minc-peritagem/
 ├─ netlify.toml
 └─ DEPLOY-NETLIFY.md   ← passo a passo da publicação
 ```
+
+## Novidades da v5.5.0
+**Atividades**
+- **Fabricar** e **Substituir** não exigem atividades: isso é trabalho da Engenharia de Processos. A seção "Atividades" continua na tela, marcada como opcional. Recuperar e Reutilizar seguem exigindo ao menos uma atividade.
+
+**Cadastro de usuários**
+- Novo interruptor **"Nome em CAIXA ALTA"** (ligado por padrão, como antes). Desligado, o nome é gravado exatamente como digitado. Vale para o cadastro na nuvem e para o cadastro local.
+
+**Galeria → Anexos**
+- O botão "Galeria" virou **"Anexos"**. Ao tocar, escolha **Galeria de fotos** ou **Arquivos** (PDF, Word, Excel, CSV, TXT, PowerPoint, DWG/DXF, ZIP…, até 25 MB por arquivo).
+- Fotos continuam como antes (entram no documento). **PDF e outros arquivos viram anexos**: aparecem numa lista logo abaixo das fotos, abrem com um toque e podem ser removidos (com "Desfazer"). Não entram no documento de execução.
+- Anexos existem no equipamento (aba Informações) e em cada componente.
+
+**Pasta por processo na nuvem**
+- Cada processo novo ganha uma pasta no Storage com o nome **Processo_Pedido_Equipamento_Cliente** (ex.: `123_P-9-1_Valvula-Gaveta-6_Petrobras-S-A`), com subpastas `fotos/`, `anexos/` e `documentos/` (PDF e JSON dos documentos arquivados).
+- A pasta só é criada quando os quatro campos estão preenchidos; até lá, fotos e anexos ficam guardados no aparelho e sobem depois. O nome fica **fixo** a partir da primeira criação (aparece na aba Informações), mesmo que a identificação seja editada depois.
+- Arquivos de antes da v5.5.0 continuam em `<id do processo>/` e seguem sendo lidos de lá; nada foi movido. **Sem migração de banco**: o caminho completo de cada arquivo já é guardado nas tabelas `photos` e `process_documents`.
 
 ## Novidades da v5.4.0
 **Subcomponentes na aba Componentes**

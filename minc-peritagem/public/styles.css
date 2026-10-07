@@ -589,3 +589,14 @@ dialog.dlg.closing::backdrop{opacity:0;transition:opacity var(--d-quick) var(--e
   .report{border:0;padding:0}
   .report-photo{width:150px;height:112px}
 }
+
+/* v5.5.0 — anexos (PDF e outros arquivos), opção de caixa alta no cadastro de usuário, pasta do processo */
+.anx-list{list-style:none;margin:12px 0 0;padding:0;display:grid;gap:8px}
+.anx{display:flex;align-items:center;gap:10px;min-height:48px;padding:6px 8px;border:1px solid var(--line-strong);border-radius:4px;background:var(--surface-2)}
+.anx-t{flex:none;min-width:44px;padding:4px 6px;text-align:center;font:700 12px/1 var(--font);letter-spacing:.04em;background:var(--ink);color:var(--on-ink);border-radius:3px}
+.anx-n{flex:1;min-width:0;display:flex;flex-direction:column;align-items:flex-start;gap:2px;min-height:44px;justify-content:center;background:none;border:0;padding:0 4px;text-align:left;cursor:pointer;color:var(--text);font:inherit}
+.anx-n b{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
+.anx-n small{color:var(--muted)}
+.actions.col{flex-direction:column;align-items:stretch}
+.name-caps{margin-top:6px;min-height:44px;font-size:14px}
+.pasta-note code{word-break:break-all}
