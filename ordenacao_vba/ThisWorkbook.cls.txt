@@ -1,0 +1,17 @@
+' Cole este codigo DENTRO do objeto "EstaPasta_de_trabalho" (ThisWorkbook),
+' nao num modulo comum.
+
+Private Sub Workbook_Open()
+    OrdenarTodasAsAbas
+End Sub
+
+' Dispara sempre que a planilha recalcula (mudou um pagamento em LANCAMENTOS,
+' um valor, o status, etc.).
+Private Sub Workbook_SheetCalculate(ByVal Sh As Object)
+    If TypeName(Sh) = "Worksheet" Then OrdenarPorStatus Sh
+End Sub
+
+' Cobre tambem a digitacao direta nas abas dos meses.
+Private Sub Workbook_SheetChange(ByVal Sh As Object, ByVal Target As Range)
+    If TypeName(Sh) = "Worksheet" Then OrdenarPorStatus Sh
+End Sub
