@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MINC · teste de pior caso</title>
+<!-- SÓ TESTE LOCAL. Abra por tests/pior-caso/servir.py (força o modo local, sem nuvem). Não vai para o Netlify. -->
+<style>
+  html,body{margin:0;height:100%;background:#d9d9d9;font:13px/1.2 system-ui,-apple-system,"Segoe UI",sans-serif}
+  .palco{height:calc(100% - 52px);display:grid;place-items:start center;overflow:auto}
+  iframe{display:block;border:0;background:#fff;height:100%;width:100%}
+  .chrome{position:fixed;left:0;right:0;bottom:0;height:52px;display:flex;gap:16px;align-items:center;justify-content:center;background:#efefef;border-top:1px solid #c4c4c4;flex-wrap:wrap}
+  .seg{display:inline-flex;background:#ddd;border-radius:8px;padding:2px;gap:2px}
+  .seg button{border:0;background:transparent;padding:6px 10px;border-radius:6px;font:inherit;color:#333;cursor:pointer}
+  .seg button[aria-pressed=true]{background:#fff;color:#000;box-shadow:0 1px 2px rgba(0,0,0,.2)}
+  small{color:#666}
+</style>
+</head>
+<body>
+<div class="palco"><iframe id="app" title="MINC Peritagem" src="/public/index.html"></iframe></div>
+<div class="chrome">
+  <span class="seg" id="dados" aria-label="Dados"></span>
+  <span class="seg" id="larg" aria-label="Largura"></span>
+  <small>login local: admin / 1234 (troca de senha na 1ª vez)</small>
+</div>
+<script src="dados.js"></script>
+<script>
+const DADOS=[['demo','Demo'],['pior','Pior caso'],['vazio','Vazio'],['um','Um'],['mil','1.000 processos']];
+const LARG=[['','Tela toda'],['820','Tablet 820'],['390','Celular 390'],['320','320']];
+const q=new URLSearchParams(location.search);
+const fr=document.getElementById('app');
+function seg(el,itens,chave,aoMudar){
+  el.innerHTML=itens.map(([v,t])=>`<button type="button" data-v="${v}" aria-pressed="${(q.get(chave)||itens[0][0])===v}">${t}</button>`).join('');
+  el.onclick=e=>{const b=e.target.closest('button');if(!b)return;q.set(chave,b.dataset.v);history.replaceState(null,'','?'+q);
+    el.querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',x===b));aoMudar(b.dataset.v)};
+}
+function abrirBanco(){return new Promise((ok,no)=>{const r=indexedDB.open('minc_peritagem',2);
+  r.onupgradeneeded=()=>{const d=r.result;if(!d.objectStoreNames.contains('processes'))d.createObjectStore('processes',{keyPath:'id'});if(!d.objectStoreNames.contains('photos'))d.createObjectStore('photos',{keyPath:'id'}).createIndex('proc','procId');if(!d.objectStoreNames.contains('docs'))d.createObjectStore('docs',{keyPath:'id'})};
+  r.onsuccess=()=>ok(r.result);r.onerror=()=>no(r.error)})}
+async function carregar(nome){
+  const lista=(window.DADOS_TESTE[nome]||window.DADOS_TESTE.demo)();
+  const db=await abrirBanco();
+  await new Promise((ok,no)=>{const t=db.transaction(['processes','photos'],'readwrite');t.objectStore('processes').clear();t.objectStore('photos').clear();
+    lista.forEach(p=>t.objectStore('processes').put(p));t.oncomplete=ok;t.onerror=()=>no(t.error)});
+  db.close();
+  // nome do usuário logado (aparece na barra superior)
+  try{const us=JSON.parse(localStorage.getItem('minc_users_v2'))||[];us.forEach(u=>{if(u.login==='admin')u.name=nome==='pior'?'ALEKSANDRA WIŚNIEWSKA-KOWALCZYK':'Administrador'});localStorage.setItem('minc_users_v2',JSON.stringify(us))}catch{}
+  fr.contentWindow.location.reload();
+}
+function largura(v){fr.style.width=v?v+'px':'100%'}
+seg(document.getElementById('dados'),DADOS,'dados',carregar);
+seg(document.getElementById('larg'),LARG,'larg',largura);
+largura(q.get('larg')||'');
+fr.addEventListener('load',()=>{if(!window._ok){window._ok=1;carregar(q.get('dados')||'demo')}},{once:false});
+</script>
+</body>
+</html>

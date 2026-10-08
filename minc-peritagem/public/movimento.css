@@ -124,7 +124,7 @@ input,textarea{caret-color:var(--accent)}
 @keyframes badge-in{from{opacity:0;transform:translateY(5px) scale(.96)}}
 
 /* filtrar a lista (Todos / Rascunho / Em execução / Concluído): as linhas entram em cascata curta (até 6 × 24 ms) */
-#rows.rows-in .row{animation:row-in 200ms var(--ease-out-ui) both;animation-delay:calc(var(--i,0)*24ms)}
+#rows.rows-in .row:nth-child(-n+12){animation:row-in 200ms var(--ease-out-ui) both;animation-delay:calc(var(--i,0)*24ms)}   /* só as que cabem na tela: com 1.000 processos não anima 1.000 linhas */
 @keyframes row-in{from{opacity:0;transform:translateY(6px)}}
 }
 

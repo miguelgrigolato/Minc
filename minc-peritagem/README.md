@@ -18,6 +18,22 @@ minc-peritagem/
 └─ DEPLOY-NETLIFY.md   ← passo a passo da publicação
 ```
 
+## Novidades da v5.8.0
+**Troca de status animada**
+- Em Rascunho / Em execução / Concluído (e nos outros controles do mesmo tipo: Estrutura/Lista de compras, abas da Administração) a pílula escura **desliza** da opção anterior até a nova em 260 ms; fundo e texto trocam juntos, sem cor intermediária. O selo de status no topo do processo entra com o valor novo.
+- Ao filtrar a lista (Todos / Rascunho / Em execução / Concluído) as linhas visíveis entram em cascata curta.
+- Com "reduzir movimento" ligado no aparelho, tudo isso troca na hora, sem deslocamento.
+
+**Sensação de app no celular e tablet**
+- Efeitos de mouse (realce, elevação, brilho) só em aparelhos com mouse: no toque eles não ficam mais "presos" depois de tocar.
+- Toque sem espera de duplo toque; segurar um botão não seleciona o texto dele.
+- Campos com letra de 16 px em tela de toque (o iPhone não dá mais zoom ao tocar num campo).
+- Altura correta da tela no celular (barra do navegador), conteúdo longe do entalhe com o celular deitado, cor da barra de status igual à barra do app.
+- A barra superior não estoura mais a largura em celulares de 390 px: a pílula de sincronização vira só o ponto de status.
+- Arrastar a página para baixo no meio do preenchimento não recarrega mais o app.
+
+**Teste de pior caso** (só para desenvolvimento, não vai para o Netlify): `python3 tests/pior-caso/servir.py` e abra `http://localhost:8790/tests/pior-caso/`. Botões na parte de baixo trocam entre Demo, Pior caso, Vazio, Um e 1.000 processos, e entre larguras de tela.
+
 ## Novidades da v5.7.0
 **Camada "Movimento & Letras"** (só visual; arquivos novos `movimento.css` e `movimento.js`, sem mexer em `styles.css` nem `app.js`)
 - **Letras:** a fonte condensada (Barlow Condensed) passa a ser a voz de todos os títulos (painéis, seções, etapas, listas vazias, "Peritagem" da barra), não só dos números. Títulos maiores e balanceados; números com largura fixa.
