@@ -1,8 +1,8 @@
 'use strict';
-/* MINC · Peritagem — v5.6.0
+/* MINC · Peritagem — v5.7.0
    Organização: utilitários → Store (IndexedDB) → Fotos → Auth → Regras (validação) → Telas → Ações/eventos → Boot */
 
-const APP_VERSION='5.6.0';
+const APP_VERSION='5.7.0';
 
 /* ============================== Utilitários ============================== */
 const $=(s,r=document)=>r.querySelector(s);

@@ -18,6 +18,14 @@ minc-peritagem/
 └─ DEPLOY-NETLIFY.md   ← passo a passo da publicação
 ```
 
+## Novidades da v5.7.0
+**Camada "Movimento & Letras"** (só visual; arquivos novos `movimento.css` e `movimento.js`, sem mexer em `styles.css` nem `app.js`)
+- **Letras:** a fonte condensada (Barlow Condensed) passa a ser a voz de todos os títulos (painéis, seções, etapas, listas vazias, "Peritagem" da barra), não só dos números. Títulos maiores e balanceados; números com largura fixa.
+- **Botões:** um ponto de luz segue o mouse/dedo sobre botões e cartões de opção; o toque deixa uma onda; o ícone "+" gira, a seta avança, "Voltar" recua e a lixeira inclina. O brilho que atravessa o botão principal continua.
+- **Trocar de processo:** o título entra com desfoque, os dados do equipamento e as etapas entram em sequência. É o único momento encenado da tela inicial.
+- **Detalhes:** o texto da linha selecionada avança 3 px; o anel de foco cresce até a posição final; "Salvando" respira; barras de rolagem e cursor usam a cor de destaque.
+- **Sem mudanças:** cores, tema claro/escuro, campos, fluxo, documento de execução, impressão e PDF. "Reduzir movimento" e "aumentar contraste" desligam tudo isto.
+
 ## Novidades da v5.6.0
 **Providência: só uma por item**
 - Escolher outra providência substitui a anterior; tocar de novo na marcada não desmarca. Vale na aba Componentes e na Estrutura.
