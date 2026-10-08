@@ -1,8 +1,8 @@
 'use strict';
-/* MINC · Peritagem — v5.7.0
+/* MINC · Peritagem — v5.8.0
    Organização: utilitários → Store (IndexedDB) → Fotos → Auth → Regras (validação) → Telas → Ações/eventos → Boot */
 
-const APP_VERSION='5.7.0';
+const APP_VERSION='5.8.0';
 
 /* ============================== Utilitários ============================== */
 const $=(s,r=document)=>r.querySelector(s);
@@ -452,17 +452,49 @@ function afterRender(){
   }
   if(S.fx==='shake'){S.fx=null;const eb=$('#errslot .errbox');if(eb)eb.classList.add('shake')}
   S.opening=null;
+  if(S.rowsIn){S.rowsIn=false;const rw=$('#rows');if(rw&&!RM()){rw.classList.add('rows-in');setTimeout(()=>rw.classList.remove('rows-in'),420)}}
   const pk=[].concat(S.pulse||[]);S.pulse=null;
   for(const k of pk){const n=m.querySelector(`[data-fk="${qAttr(k)}"]`);if(n){n.classList.remove('just');void n.offsetWidth;n.classList.add('just')}}
 }
 function renderMain(){
   const m=$('#main');if(!m)return render();
-  const y=window.scrollY,k=document.activeElement?.dataset?.fk;
+  const y=window.scrollY,k=document.activeElement?.dataset?.fk,seg=segSnap(m);
   m.innerHTML=view();
   if(k){const n=m.querySelector(`[data-fk="${qAttr(k)}"]`);n&&n.focus({preventScroll:true})}
   window.scrollTo(0,y);
   if(S.focus){const n=document.getElementById(S.focus);S.focus=null;if(n)n.focus()}
-  afterRender();
+  afterRender();segGlide(m,seg);
+}
+/* Controles segmentados (status Rascunho / Em execução / Concluído, visões, abas): a pílula escura desliza da opção
+   anterior até a nova. Uma cópia "marcada" das opções fica por cima, recortada só na opção ativa, e o recorte anda:
+   fundo e texto trocam juntos, sem cor intermediária. A tela é redesenhada inteira, então a posição de partida é
+   medida antes (segSnap) e a animação começa depois (segGlide). Curva = --ease-io de movimento.css. */
+const segKey=g=>g.getAttribute('aria-label')||g.getAttribute('aria-labelledby');
+function segClip(g,b){
+  const s=g.getBoundingClientRect(),r=b.getBoundingClientRect(),L=s.left+g.clientLeft,T=s.top+g.clientTop;
+  return `inset(${r.top-T}px ${L+g.clientWidth-r.right}px ${T+g.clientHeight-r.bottom}px ${r.left-L}px round ${getComputedStyle(b).borderTopLeftRadius})`;
+}
+function segSnap(m){
+  const out=new Map();if(RM()||!Element.prototype.animate)return out;
+  m.querySelectorAll('.seg').forEach(g=>{const b=g.querySelector(':scope>.seg-b.on'),k=segKey(g);if(b&&k)out.set(k,segClip(g,b))});
+  return out;
+}
+function segGlide(m,snap){
+  if(!snap.size)return;
+  m.querySelectorAll('.seg').forEach(g=>{
+    const from=snap.get(segKey(g)),b=g.querySelector(':scope>.seg-b.on');if(!from||!b)return;
+    const to=segClip(g,b);if(to===from)return;
+    const ov=document.createElement('div');ov.className='seg-ov';ov.setAttribute('aria-hidden','true');
+    // cada opção da cópia fica exatamente sobre a original (posição medida), para o texto não "tremer" na borda do recorte
+    const gr=g.getBoundingClientRect(),gx=gr.left+g.clientLeft,gy=gr.top+g.clientTop;
+    ov.innerHTML=[...g.querySelectorAll(':scope>.seg-b')].map(x=>{const r=x.getBoundingClientRect();return `<span class="seg-b on" style="left:${r.left-gx}px;top:${r.top-gy}px;width:${r.width}px;height:${r.height}px">${x.innerHTML}</span>`}).join('');
+    ov.style.clipPath=to;   // estado final já fixo: no quadro em que a animação acaba a pílula não cobre o controle inteiro
+    g.classList.add('gliding');g.append(ov);
+    const a=ov.animate([{clipPath:from},{clipPath:to}],{duration:260,easing:'cubic-bezier(.77,0,.175,1)'});
+    let done=false;
+    const end=()=>{if(done)return;done=true;g.classList.add('settle');g.classList.remove('gliding');ov.remove();requestAnimationFrame(()=>requestAnimationFrame(()=>g.classList.remove('settle')))};
+    a.onfinish=end;a.oncancel=end;
+  });
 }
 
 /* ---------- Login ---------- */
@@ -517,7 +549,7 @@ function detail(p,all){
 /* ---------- Carimbo, etapas e barra de ações ---------- */
 function carimbo(r,bump=false){
   const done=VALIDATED.filter(k=>stepOk(k,r)).length;
-  return `<header class="carimbo no-print"><button class="btn ghost back" data-act="home">${ic('back')}<span>Processos</span></button><div class="cb-grid"><div class="cb-c cb-eq"><small>Equipamento</small><b>${esc(r.equipamento)||'Novo processo'}</b></div><div class="cb-c"><small>Cliente</small><b>${esc(r.cliente)||'—'}</b></div><div class="cb-c"><small>Processo</small><b>${esc(r.process)||'—'}</b></div><div class="cb-c"><small>Pedido / Ordem</small><b>${esc(r.pedido)||'—'} / ${esc(r.ordem)||'—'}</b></div><div class="cb-c"><small>Status</small>${badge(r.status)}</div><div class="cb-c${bump?' just':''}"><small>Etapas completas</small><b>${done} de ${VALIDATED.length}</b></div></div></header>`;
+  return `<header class="carimbo no-print"><button class="btn ghost back" data-act="home">${ic('back')}<span>Processos</span></button><div class="cb-grid"><div class="cb-c cb-eq"><small>Equipamento</small><b>${esc(r.equipamento)||'Novo processo'}</b></div><div class="cb-c"><small>Cliente</small><b>${esc(r.cliente)||'—'}</b></div><div class="cb-c"><small>Processo</small><b>${esc(r.process)||'—'}</b></div><div class="cb-c"><small>Pedido / Ordem</small><b>${esc(r.pedido)||'—'} / ${esc(r.ordem)||'—'}</b></div><div class="cb-c"><small>Status</small><span class="cb-st" data-fk="cb-st">${badge(r.status)}</span></div><div class="cb-c${bump?' just':''}"><small>Etapas completas</small><b>${done} de ${VALIDATED.length}</b></div></div></header>`;
 }
 function stepState(k){if(VALIDATED.includes(k))return stepOk(k)?'ok':'todo';return VALIDATED.every(v=>stepOk(v))?'open':'locked'}
 function stepsHTML(fresh=[]){
@@ -1338,7 +1370,7 @@ const ACT={
   useServer(el){const p=PROCS.find(x=>x.id===el.dataset.id);if(!p||!p._conflict)return;replaceLocal(p,fromRow(p._conflict));Store.put('processes',p).catch(()=>{});el.closest('dialog')?.close();renderMain();Sync.kick(300)},
   async recheck(){try{const prof=await loadProfile({id:S.user.id});enter(prof,S.user.login);if(S.screen==='blocked')toast('O acesso continua bloqueado.')}catch(e){toast(cloudErrMsg(e))}},
   /* início */
-  filter(el){S.filter=el.dataset.v;renderMain()},
+  filter(el){if(S.filter!==el.dataset.v)S.rowsIn=true;S.filter=el.dataset.v;renderMain()},
   pick(el){
     if(!wide()){openProcess(el.dataset.id);return}
     S.sel=el.dataset.id;const all=PROCS.filter(p=>!p.deletedAt),rows=$('#rows'),y=rows?rows.scrollTop:0;
@@ -1359,7 +1391,7 @@ const ACT={
         PROCS=PROCS.filter(p=>p!==r);await Store.del('processes',r.id).catch(()=>{});for(const p of await Store.photosOf(r.id))await Photos.drop(p.id)}});
   },
   /* informações */
-  status(el){const r=cur(),v=el.dataset.v;if(v==='Concluído'&&VALIDATED.some(k=>check(k).length)){const g=el.closest?.('.seg');if(g&&!RM()){g.classList.remove('shake');void g.offsetWidth;g.classList.add('shake')}toast('Não é possível concluir: há campos obrigatórios pendentes.');return}r.status=v;changed();renderMain()},
+  status(el){const r=cur(),v=el.dataset.v;if(v==='Concluído'&&VALIDATED.some(k=>check(k).length)){const g=el.closest?.('.seg');if(g&&!RM()){g.classList.remove('shake');void g.offsetWidth;g.classList.add('shake')}toast('Não é possível concluir: há campos obrigatórios pendentes.');return}if(r.status!==v)S.pulse=[].concat(S.pulse||[],'cb-st');r.status=v;changed();renderMain()},
   set(el){cur()[el.dataset.k]=el.dataset.v;changed();renderMain()},
   pickPhoto(el){const i=document.createElement('input');i.type='file';i.accept='image/*';i.multiple=true;if(el.dataset.cap)i.setAttribute('capture','environment');i.onchange=()=>addPhotos(i.files,el.dataset.t);i.click()},
   pickAnexo(el){

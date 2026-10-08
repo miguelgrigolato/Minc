@@ -6,6 +6,8 @@
 @media screen{
 :root{
   --out:cubic-bezier(.16,1,.3,1);          /* desaceleração exponencial: chega rápido, assenta devagar */
+  --ease-io:cubic-bezier(.77,0,.175,1);    /* movimento na tela (a pílula do status desliza de uma opção à outra) */
+  --ease-out-ui:cubic-bezier(.23,1,.32,1); /* entradas curtas de interface */
   --spot:color-mix(in srgb,var(--accent) 14%,transparent);
   --spot-on:rgba(255,255,255,.22);
 }
@@ -36,7 +38,7 @@
 .rcard{isolation:isolate;overflow:hidden}
 .btn.primary::before{background:radial-gradient(180px circle at var(--mx) var(--my),var(--spot-on),transparent 72%)}
 .btn.ghost::before{display:none}
-@media(hover:hover){
+@media(hover:hover) and (pointer:fine){
   .btn:not(:disabled):hover::before,.rcard:hover::before{opacity:1}
 }
 .rcard.on::before{display:none}
@@ -49,7 +51,7 @@
 /* ícones reagem: + gira, seta avança, voltar recua */
 .btn>.ic{transition:transform 360ms var(--out)}
 /* movimento.js marca cada ícone com data-ic (plus, next, back, trash) */
-@media(hover:hover){
+@media(hover:hover) and (pointer:fine){
   .btn:not(:disabled):hover>.ic[data-ic=plus]{transform:rotate(90deg)}
   .btn:not(:disabled):hover>.ic[data-ic=next]{transform:translateX(4px)}
   .btn:not(:disabled):hover>.ic[data-ic=back]{transform:translateX(-4px)}
@@ -62,7 +64,7 @@
 
 /* ---------- Lista: o texto da linha avança, a linha escolhida já fica adiantada ---------- */
 .row-t{transition:transform 380ms var(--out)}
-@media(hover:hover){.row:hover .row-t{transform:translateX(3px)}}
+@media(hover:hover) and (pointer:fine){.row:hover .row-t{transform:translateX(3px)}}
 .row.sel .row-t{transform:translateX(3px)}
 
 /* ---------- O momento encenado do app: trocar de processo ---------- */
@@ -94,7 +96,7 @@
 /* ---------- Estado de gravação respira; links ganham espaço ao toque ---------- */
 .pill[data-s=saving] i,.pill[data-s=busy] i{animation:breathe 1.1s ease-in-out infinite}
 .link{text-decoration-thickness:1.5px;transition:text-underline-offset 220ms var(--out)}
-@media(hover:hover){.link:hover{text-underline-offset:6px}}
+@media(hover:hover) and (pointer:fine){.link:hover{text-underline-offset:6px}}
 
 /* ---------- Superfícies do navegador que também são do design ---------- */
 *{scrollbar-width:thin;scrollbar-color:color-mix(in srgb,var(--line-strong) 65%,transparent) transparent}
@@ -102,11 +104,36 @@
 ::-webkit-scrollbar-thumb{background:color-mix(in srgb,var(--line-strong) 65%,transparent);border-radius:999px;border:3px solid transparent;background-clip:content-box}
 ::-webkit-scrollbar-thumb:hover{background:var(--line-strong);background-clip:content-box;border:3px solid transparent}
 input,textarea{caret-color:var(--accent)}
+
+/* ---------- v5.8.0 · Troca de status (Rascunho / Em execução / Concluído) e demais controles segmentados ----------
+   A pílula escura desliza da opção anterior até a nova (app.js: segSnap/segGlide). Durante o deslize as opções de baixo
+   ficam neutras e uma cópia marcada, recortada, anda por cima: fundo e texto trocam juntos. 260 ms, --ease-io. */
+.seg{position:relative}
+.seg-ov{position:absolute;inset:0;pointer-events:none;z-index:1;background:var(--ink);border-radius:inherit}
+.seg-ov>.seg-b{position:absolute;margin:0;cursor:default;background:transparent;box-shadow:none;text-align:center}
+/* durante o deslize (e no quadro em que ele termina) as opções de baixo trocam de estado sem transição de cor,
+   senão a opção nova passaria por um cinza antes de ficar preta */
+.seg.gliding>.seg-b,.seg.settle>.seg-b{transition:none;animation:none}
+.seg.settle>.seg-b.on{transition:box-shadow 200ms var(--ease-out-ui)}   /* só o anel de foco acende devagar */
+.seg.gliding>.seg-b.on{background:transparent;color:inherit;box-shadow:none}
+
+/* o selo de status no carimbo troca com uma entrada curta (o texto muda de verdade, então ele entra, não pulsa) */
+.cb-st{display:inline-flex}
+.cb-st.just{animation:none}
+.cb-st.just .badge{animation:badge-in 220ms var(--ease-out-ui) both}
+@keyframes badge-in{from{opacity:0;transform:translateY(5px) scale(.96)}}
+
+/* filtrar a lista (Todos / Rascunho / Em execução / Concluído): as linhas entram em cascata curta (até 6 × 24 ms) */
+#rows.rows-in .row{animation:row-in 200ms var(--ease-out-ui) both;animation-delay:calc(var(--i,0)*24ms)}
+@keyframes row-in{from{opacity:0;transform:translateY(6px)}}
 }
 
 /* ---------- Acessibilidade: o que este arquivo anima obedece à preferência do aparelho ---------- */
 @media(prefers-reduced-motion:reduce){
   .btn .rp{display:none}
+  .seg-ov{display:none}
+  /* sem deslocamento: o selo só troca de cor (comunica o novo estado sem movimento) */
+  .cb-st.just .badge{animation:none}
   .row:hover .row-t,.row.sel .row-t{transform:none}
 }
 @media(prefers-contrast:more){

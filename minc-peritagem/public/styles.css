@@ -54,27 +54,27 @@ h1,h2,h3,p{margin:0}
 .pill{display:inline-flex;align-items:center;gap:8px;min-height:32px;padding:0 12px;border:1px solid #4a4a4a;border-radius:999px;font-size:13px;color:#e6e6e6;white-space:nowrap}
 .pill i{width:8px;height:8px;border-radius:50%;background:#8a8a8a}
 button.pill{background:transparent;font:inherit;font-size:13px;cursor:pointer}
-button.pill:hover{background:#262626}
+@media(hover:hover) and (pointer:fine){button.pill:hover{background:#262626}}
 .pill[data-s=saved] i,.pill[data-s=ok] i{background:#3fb67a}
 .pill[data-s=saving] i,.pill[data-s=busy] i{background:var(--warn)}
 .pill[data-s=error] i,.pill[data-s=off] i{background:var(--bad)}
 .pill[data-s=local] i{background:#8a8a8a}
 .iconbtn,.userchip{min-height:44px;min-width:44px;display:inline-grid;place-items:center;background:transparent;color:#fff;border:1px solid #4a4a4a;border-radius:var(--r-ctl,6px);padding:0 12px}
-.iconbtn:hover,.userchip:hover{background:#262626}
+@media(hover:hover) and (pointer:fine){.iconbtn:hover,.userchip:hover{background:#262626}}
 .userchip{font-weight:600;font-size:14px}
 
 .container{max-width:1400px;margin:0 auto;padding:20px 20px calc(20px + env(safe-area-inset-bottom))}
 
 /* ---------- Botões ---------- */
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:48px;padding:0 18px;border:2px solid var(--ink);border-radius:6px;background:var(--surface);color:var(--text);font-weight:600;line-height:1.1;text-align:center;transition:background-color .12s,transform .06s}
-.btn:hover{background:var(--surface-2)}
+@media(hover:hover) and (pointer:fine){.btn:hover{background:var(--surface-2)}}
 .btn:active{transform:translateY(1px)}
 .btn.primary{background:var(--ink);color:var(--on-ink)}
-.btn.primary:hover{background:var(--muted);border-color:var(--muted);color:var(--on-ink)}
+@media(hover:hover) and (pointer:fine){.btn.primary:hover{background:var(--muted);border-color:var(--muted);color:var(--on-ink)}}
 .btn.ghost{border-color:transparent;background:transparent}
-.btn.ghost:hover{background:var(--surface-2)}
+@media(hover:hover) and (pointer:fine){.btn.ghost:hover{background:var(--surface-2)}}
 .btn.danger{border-color:var(--bad-text);color:var(--bad-text)}
-.btn.danger:hover{background:var(--bad-text);color:#fff}
+@media(hover:hover) and (pointer:fine){.btn.danger:hover{background:var(--bad-text);color:#fff}}
 .btn.danger-solid{background:var(--bad);border-color:var(--bad);color:#fff}
 .btn.block{width:100%}
 .btn[aria-busy=true]{pointer-events:none;opacity:.7}
@@ -107,7 +107,7 @@ input:disabled,select:disabled{background:var(--surface-2);color:var(--muted);bo
 .rcard{display:grid;gap:2px;align-content:center;min-height:64px;padding:12px 16px;text-align:left;background:var(--surface);border:2px solid var(--line-strong);border-radius:6px;position:relative}
 .rcard b{font-size:16px}
 .rcard small{font-size:13px;color:var(--muted)}
-.rcard:hover{border-color:var(--ink)}
+@media(hover:hover) and (pointer:fine){.rcard:hover{border-color:var(--ink)}}
 .rcard.on{background:var(--ink);border-color:var(--ink);color:var(--on-ink)}
 .rcard.on small{color:inherit;opacity:.8}
 .rcard.on::after{content:"";position:absolute;right:14px;top:50%;width:10px;height:18px;margin-top:-13px;border:solid currentColor;border-width:0 3px 3px 0;transform:rotate(45deg)}
@@ -125,8 +125,8 @@ input:disabled,select:disabled{background:var(--surface-2);color:var(--muted);bo
 .ph-row .appl{width:auto;min-width:300px}
 .ap{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;min-height:44px;padding:0 14px;background:var(--surface);border:0;font-weight:600;font-size:14px;white-space:nowrap}
 .ap+.ap{border-left:2px solid var(--ink)}
-.ap.yes:hover:not(.on){background:color-mix(in srgb,var(--ok) 16%,var(--surface))}
-.ap.no:hover:not(.on){background:color-mix(in srgb,var(--na) 28%,var(--surface))}
+@media(hover:hover) and (pointer:fine){.ap.yes:hover:not(.on){background:color-mix(in srgb,var(--ok) 16%,var(--surface))}}
+@media(hover:hover) and (pointer:fine){.ap.no:hover:not(.on){background:color-mix(in srgb,var(--na) 28%,var(--surface))}}
 .ap.yes.on{background:var(--ok);color:var(--on-ok)}
 .ap.no.on{background:var(--na);color:#000}
 .panel[data-ap=yes]{border-left:6px solid var(--ok)}
@@ -136,7 +136,7 @@ input:disabled,select:disabled{background:var(--surface-2);color:var(--muted);bo
 /* Chips (checkbox) */
 .chips{display:flex;flex-wrap:wrap;gap:8px}
 .chip{display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:0 16px;border:1.5px solid var(--line-strong);border-radius:999px;background:var(--surface);font-weight:500;font-size:15px}
-.chip:hover{border-color:var(--ink)}
+@media(hover:hover) and (pointer:fine){.chip:hover{border-color:var(--ink)}}
 .chip.on{background:var(--ink);border-color:var(--ink);color:var(--on-ink);font-weight:600}
 .chips.fl .chip{min-height:40px;font-size:14px;padding:0 14px}
 
@@ -188,7 +188,7 @@ input:disabled,select:disabled{background:var(--surface-2);color:var(--muted);bo
 #rows{overflow:auto;border-top:1px solid var(--line);flex:1}
 .row{--st:var(--draft);display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 12px;width:100%;min-height:68px;padding:12px 16px 12px 14px;text-align:left;background:var(--surface);border:0;border-bottom:1px solid var(--line);border-left:6px solid var(--st)}
 .row.st-amber{--st:var(--warn)}.row.st-green{--st:var(--ok)}
-.row:hover{background:var(--surface-2)}
+@media(hover:hover) and (pointer:fine){.row:hover{background:var(--surface-2)}}
 .row.sel{background:var(--surface-2);box-shadow:inset 0 0 0 2px var(--ink)}
 .row-t{display:grid;gap:2px;min-width:0}
 .row-t b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -234,7 +234,7 @@ input:disabled,select:disabled{background:var(--surface-2);color:var(--muted);bo
 #stepslot{position:sticky;top:calc(var(--bar-h) + 20px)}
 .steps{background:var(--surface);border:1px solid var(--line);border-radius:4px;padding:6px 0;display:grid}
 .step{position:relative;display:grid;grid-template-columns:auto 1fr;align-items:center;gap:12px;min-height:56px;padding:8px 14px;text-align:left;background:none;border:0;border-left:4px solid transparent;font-weight:600}
-.step:hover{background:var(--surface-2)}
+@media(hover:hover) and (pointer:fine){.step:hover{background:var(--surface-2)}}
 .step.cur{border-left-color:var(--ink);background:var(--surface-2)}
 .step:not(:last-child)::after{content:"";position:absolute;left:33px;top:calc(50% + 16px);height:calc(100% - 32px);width:2px;background:var(--line-strong)}
 .node{display:grid;place-items:center;width:30px;height:30px;border-radius:50%;border:2px solid var(--ink);background:var(--surface);font-family:var(--display);font-weight:700;font-size:17px;line-height:1;position:relative;z-index:1}
@@ -248,7 +248,7 @@ input:disabled,select:disabled{background:var(--surface-2);color:var(--muted);bo
 .comp{background:var(--surface);border:1px solid var(--line);border-radius:4px;margin-bottom:12px}
 .comp.open{border:2px solid var(--ink)}
 .comp-head{display:grid;grid-template-columns:auto minmax(0,1fr) auto auto auto auto;align-items:center;gap:6px 14px;width:100%;min-height:68px;padding:10px 16px;background:none;border:0;text-align:left}
-.comp-head:hover{background:var(--surface-2)}
+@media(hover:hover) and (pointer:fine){.comp-head:hover{background:var(--surface-2)}}
 .comp-no{font-family:var(--display);font-weight:700;font-size:34px;line-height:1;min-width:34px}
 .comp{margin-left:calc(var(--lv,0)*28px)}
 .comp.sub{border-left:5px solid var(--ink)}
@@ -280,7 +280,7 @@ input:disabled,select:disabled{background:var(--surface-2);color:var(--muted);bo
 .ph-img{display:block;width:100%;height:100%;padding:0;border:0;background:none}
 .ph-img img{width:100%;height:100%;object-fit:cover;display:block}
 .ph-x{position:absolute;top:4px;right:4px;width:44px;height:44px;display:grid;place-items:center;background:rgba(0,0,0,.78);color:#fff;border:1px solid rgba(255,255,255,.5);border-radius:50%}
-.ph-x:hover{background:var(--bad)}
+@media(hover:hover) and (pointer:fine){.ph-x:hover{background:var(--bad)}}
 .ph-none{grid-column:1/-1;padding:22px;text-align:center;color:var(--muted);border:1.5px dashed var(--line-strong);border-radius:4px}
 
 /* ---------- Tabelas ---------- */
@@ -394,7 +394,7 @@ dialog.lb{width:min(960px,calc(100vw - 16px))}
 .ativ-n{font-family:var(--display);font-weight:700;font-size:22px;text-align:center;color:var(--muted)}
 .ativ-b{display:flex;gap:4px}
 .iconb{width:44px;height:44px;display:grid;place-items:center;background:var(--surface);border:1.5px solid var(--line-strong);border-radius:6px;padding:0}
-.iconb:hover:not(:disabled){border-color:var(--ink)}
+@media(hover:hover) and (pointer:fine){.iconb:hover:not(:disabled){border-color:var(--ink)}}
 .iconb:disabled{opacity:.35;cursor:default}
 .cat{margin:12px 0 4px}
 .quick{padding:14px 20px}
@@ -458,9 +458,9 @@ button.brand{cursor:pointer}
 .brand-sub{position:relative;margin-left:14px;padding-left:14px;font-size:15px;font-weight:500;color:#d0d0d0;transition:color var(--d-quick) var(--ease)}
 .brand-sub::before{content:"";position:absolute;left:0;top:50%;height:20px;margin-top:-10px;width:1px;background:#5c5c5c}
 .brand-sub::after{content:"";position:absolute;left:14px;right:0;bottom:-5px;height:2px;background:#fff;transform:scaleX(0);transform-origin:left;transition:transform var(--d-std) var(--ease)}
-button.brand:hover .wm-b{background:#e2e2e2}
-button.brand:hover .brand-sub{color:#fff}
-button.brand:hover .brand-sub::after{transform:scaleX(1)}
+@media(hover:hover) and (pointer:fine){button.brand:hover .wm-b{background:#e2e2e2}}
+@media(hover:hover) and (pointer:fine){button.brand:hover .brand-sub{color:#fff}}
+@media(hover:hover) and (pointer:fine){button.brand:hover .brand-sub::after{transform:scaleX(1)}}
 
 /* =====================================================================
    MOVIMENTO — perfil Corporate com sensação de metal rígido
@@ -547,7 +547,7 @@ dialog.dlg.closing::backdrop{opacity:0;transition:opacity var(--d-quick) var(--e
 .tn-f{display:grid;grid-template-columns:minmax(210px,1fr) minmax(0,2fr) 96px 112px;gap:10px;align-items:start}
 .tn-f .field{margin-bottom:0}
 .tn-t{width:44px;height:44px;display:grid;place-items:center;margin-top:24px;background:var(--surface);border:1.5px solid var(--line-strong);border-radius:6px;padding:0}
-.tn-t:hover:not(:disabled){border-color:var(--ink)}
+@media(hover:hover) and (pointer:fine){.tn-t:hover:not(:disabled){border-color:var(--ink)}}
 .tn-t:disabled{opacity:.35;cursor:default}
 .tn-t svg{transition:transform var(--d-quick) var(--ease)}
 .tn-t[aria-expanded="false"] svg{transform:rotate(-90deg)}
@@ -559,7 +559,7 @@ dialog.dlg.closing::backdrop{opacity:0;transition:opacity var(--d-quick) var(--e
 .tn-more{margin-top:6px}
 .tn-more>summary{display:inline-flex;align-items:center;min-height:44px;padding:0 4px;cursor:pointer;font-size:14px;font-weight:600;color:var(--muted)}
 .tn-more>summary{text-decoration:underline;text-underline-offset:3px}
-.tn-more>summary:hover{color:var(--text)}
+@media(hover:hover) and (pointer:fine){.tn-more>summary:hover{color:var(--text)}}
 .tn-more-b{display:grid;gap:12px;max-width:560px;padding:14px;margin-top:4px;border:1px solid var(--line);border-radius:4px;background:var(--surface-2)}
 .tn-more-b .field{margin:0}
 .tl{margin:8px 0 0 calc(var(--lv,1)*28px)}
@@ -660,10 +660,10 @@ body{
   box-shadow:inset 0 -1px 0 rgba(255,255,255,.07),0 8px 24px -16px rgba(0,0,0,.6)}
 .topbar::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:1px;background:linear-gradient(90deg,transparent,color-mix(in srgb,var(--accent) 55%,transparent) 50%,transparent);opacity:.55;pointer-events:none}
 .pill{border-color:rgba(255,255,255,.14);background:rgba(255,255,255,.04)}
-button.pill:hover{background:rgba(255,255,255,.1)}
+@media(hover:hover) and (pointer:fine){button.pill:hover{background:rgba(255,255,255,.1)}}
 .pill[data-s=saved] i,.pill[data-s=ok] i{box-shadow:0 0 8px #3fb67a}
 .iconbtn,.userchip{border-color:rgba(255,255,255,.14);border-radius:var(--r-s);background:rgba(255,255,255,.04)}
-.iconbtn:hover,.userchip:hover{background:rgba(255,255,255,.12)}
+@media(hover:hover) and (pointer:fine){.iconbtn:hover,.userchip:hover{background:rgba(255,255,255,.12)}}
 .wm-b{border-radius:4px;box-shadow:0 0 0 1px rgba(255,255,255,.4),0 4px 14px -4px rgba(255,255,255,.35)}
 
 /* ---- superfícies: alumínio usinado ---- */
@@ -691,19 +691,19 @@ button.pill:hover{background:rgba(255,255,255,.1)}
 /* ---- botões ---- */
 .btn{position:relative;overflow:hidden;isolation:isolate;border:1.5px solid color-mix(in srgb,var(--ink) 82%,transparent);border-radius:var(--r-s);
   background:linear-gradient(180deg,var(--surface),var(--surface-2));box-shadow:var(--hi),var(--sh-1);letter-spacing:-.005em}
-.btn:hover{background:linear-gradient(180deg,var(--surface),var(--surface-3))}
+@media(hover:hover) and (pointer:fine){.btn:hover{background:linear-gradient(180deg,var(--surface),var(--surface-3))}}
 .btn.primary{border-color:var(--ink);background:linear-gradient(180deg,color-mix(in srgb,var(--ink) 86%,var(--surface)),var(--ink));color:var(--on-ink);
   box-shadow:inset 0 1px 0 rgba(255,255,255,.18),0 1px 2px rgba(0,0,0,.2),0 8px 20px -10px color-mix(in srgb,var(--ink) 70%,transparent)}
-.btn.primary:hover{background:linear-gradient(180deg,color-mix(in srgb,var(--ink) 78%,var(--surface)),var(--ink));border-color:var(--ink);color:var(--on-ink);
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.2),0 0 0 3px var(--glow),0 10px 24px -10px color-mix(in srgb,var(--accent) 60%,transparent)}
+@media(hover:hover) and (pointer:fine){.btn.primary:hover{background:linear-gradient(180deg,color-mix(in srgb,var(--ink) 78%,var(--surface)),var(--ink));border-color:var(--ink);color:var(--on-ink);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.2),0 0 0 3px var(--glow),0 10px 24px -10px color-mix(in srgb,var(--accent) 60%,transparent)}}
 /* brilho que atravessa o botão principal (só com mouse) */
 .btn.primary::after{content:"";position:absolute;inset:0;z-index:-1;background:linear-gradient(105deg,transparent 30%,rgba(255,255,255,.28) 48%,rgba(255,255,255,.06) 56%,transparent 70%);transform:translateX(-120%);pointer-events:none}
 [data-theme=dark] .btn.primary::after{background:linear-gradient(105deg,transparent 30%,rgba(0,0,0,.14) 48%,rgba(0,0,0,.04) 56%,transparent 70%)}
-@media(hover:hover){.btn.primary:hover::after{transform:translateX(120%);transition:transform 700ms cubic-bezier(.4,0,.2,1)}}
+@media(hover:hover) and (pointer:fine){.btn.primary:hover::after{transform:translateX(120%);transition:transform 700ms cubic-bezier(.4,0,.2,1)}}
 .btn.ghost{background:transparent;box-shadow:none;border-color:transparent}
-.btn.ghost:hover{background:color-mix(in srgb,var(--ink) 6%,transparent)}
+@media(hover:hover) and (pointer:fine){.btn.ghost:hover{background:color-mix(in srgb,var(--ink) 6%,transparent)}}
 .btn.danger{background:linear-gradient(180deg,var(--surface),var(--surface-2));border-color:color-mix(in srgb,var(--bad-text) 70%,transparent)}
-.btn.danger:hover{background:var(--bad-text);border-color:var(--bad-text);color:#fff}
+@media(hover:hover) and (pointer:fine){.btn.danger:hover{background:var(--bad-text);border-color:var(--bad-text);color:#fff}}
 .iconb,.tn-t{border-radius:var(--r-s);border-color:var(--line);background:linear-gradient(180deg,var(--surface),var(--surface-2));box-shadow:var(--hi),var(--sh-1)}
 .link{border-radius:var(--r-s)}
 
@@ -711,7 +711,7 @@ button.pill:hover{background:rgba(255,255,255,.1)}
 input:not([type=checkbox]):not([type=radio]),select,textarea{border-radius:var(--r-s);border:1.5px solid color-mix(in srgb,var(--line-strong) 75%,var(--line));
   background:var(--surface);box-shadow:inset 0 1px 2px rgba(16,24,40,.05);
   transition:border-color 160ms var(--ease),box-shadow 220ms var(--ease),background-color 160ms var(--ease)}
-input:not([type=checkbox]):not([type=radio]):hover,select:hover,textarea:hover{border-color:var(--line-strong)}
+@media(hover:hover) and (pointer:fine){input:not([type=checkbox]):not([type=radio]):hover,select:hover,textarea:hover{border-color:var(--line-strong)}}
 input:not([type=checkbox]):not([type=radio]):focus,select:focus,textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 4px var(--glow),inset 0 1px 2px rgba(16,24,40,.04)}
 input:disabled,select:disabled{background:var(--surface-2)}
 .invalid{box-shadow:0 0 0 4px color-mix(in srgb,var(--bad) 22%,transparent)!important}
@@ -720,13 +720,13 @@ input:disabled,select:disabled{background:var(--surface-2)}
 
 /* ---- cartões de opção, chips, segmentados ---- */
 .rcard{border-radius:var(--r);border:1.5px solid color-mix(in srgb,var(--line-strong) 70%,var(--line));background:linear-gradient(180deg,var(--surface),var(--surface-2));box-shadow:var(--hi),var(--sh-1)}
-.rcard:hover{border-color:var(--ink)}
+@media(hover:hover) and (pointer:fine){.rcard:hover{border-color:var(--ink)}}
 .rcard.on{background:linear-gradient(180deg,color-mix(in srgb,var(--ink) 88%,var(--surface)),var(--ink));border-color:var(--ink);color:var(--on-ink);
   box-shadow:inset 0 1px 0 rgba(255,255,255,.14),0 0 0 3px var(--glow),0 10px 26px -14px color-mix(in srgb,var(--accent) 80%,transparent)}
 .rcard.on::after{border-color:var(--accent-2)}
 [data-theme=dark] .rcard.on::after{border-color:var(--accent)}
 .chip{border-radius:999px;border:1.5px solid color-mix(in srgb,var(--line-strong) 70%,var(--line));background:linear-gradient(180deg,var(--surface),var(--surface-2));box-shadow:var(--hi),var(--sh-1)}
-.chip:hover{border-color:var(--ink)}
+@media(hover:hover) and (pointer:fine){.chip:hover{border-color:var(--ink)}}
 .chip.on{background:var(--ink);border-color:var(--ink);color:var(--on-ink);box-shadow:0 0 0 3px var(--glow)}
 .chip.on .ic{color:var(--accent-2)}
 [data-theme=dark] .chip.on .ic{color:var(--accent)}
@@ -770,7 +770,7 @@ input:disabled,select:disabled{background:var(--surface-2)}
 /* ---- fotos e anexos ---- */
 .ph-tile{border-radius:var(--r-s);border-color:var(--line);box-shadow:var(--sh-1)}
 .ph-img img{transition:transform 600ms var(--spring)}
-@media(hover:hover){.ph-tile:hover .ph-img img{transform:scale(1.04)}}
+@media(hover:hover) and (pointer:fine){.ph-tile:hover .ph-img img{transform:scale(1.04)}}
 .ph-x{-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);background:rgba(10,12,16,.6);border-color:rgba(255,255,255,.3)}
 .ph-none{border-radius:var(--r-s)}
 .anx-t{border-radius:5px;background:linear-gradient(180deg,color-mix(in srgb,var(--ink) 80%,var(--surface)),var(--ink))}
@@ -780,7 +780,7 @@ dialog.dlg{border:1px solid var(--line);border-radius:var(--r-l);box-shadow:var(
 dialog.dlg::backdrop{background:rgba(8,10,14,.42);-webkit-backdrop-filter:blur(6px) saturate(120%);backdrop-filter:blur(6px) saturate(120%)}
 .toast{background:var(--glass-dark);-webkit-backdrop-filter:blur(18px) saturate(170%);backdrop-filter:blur(18px) saturate(170%);border:1px solid rgba(255,255,255,.12);border-radius:var(--r);box-shadow:0 18px 40px -16px rgba(0,0,0,.6);font-weight:500}
 .toast button{border-radius:var(--r-s);border-color:rgba(255,255,255,.5)}
-.toast button:hover{background:rgba(255,255,255,.12)}
+@media(hover:hover) and (pointer:fine){.toast button:hover{background:rgba(255,255,255,.12)}}
 .toast .bar{background:linear-gradient(90deg,var(--accent),var(--accent-2))}
 
 /* ---- movimento: resposta imediata, retorno por mola ---- */
@@ -789,7 +789,7 @@ dialog.dlg::backdrop{background:rgba(8,10,14,.42);-webkit-backdrop-filter:blur(6
 .btn:active,.chip:active,.rcard:active,.ap:active,.seg-b:active,.iconb:active,.iconbtn:active,.userchip:active,button.pill:active,.tn-t:active,.ph-x:active,button.brand:active{
   transform:scale(.965);transition-duration:var(--d-press),160ms,160ms,160ms,240ms;transition-timing-function:ease-out}
 .row:active{transform:scale(.99);transition-duration:var(--d-press);transition-timing-function:ease-out}
-@media(hover:hover){
+@media(hover:hover) and (pointer:fine){
   .rcard:hover,.chip:hover:not(.on){transform:translateY(-1px);box-shadow:var(--hi),var(--sh-2)}
   .btn:not(.ghost):hover{transform:translateY(-1px)}
   .comp:not(.open):hover{transform:translateY(-1px);box-shadow:var(--hi),var(--sh-3)}
@@ -851,6 +851,36 @@ dialog.dlg[open]::backdrop{animation:fade-in 300ms var(--ease)}
 }
 /* tema escuro: o botão principal é claro, então a sombra fica escura (sem halo branco) e os avisos ganham contraste */
 [data-theme=dark] .btn.primary{box-shadow:inset 0 1px 0 rgba(255,255,255,.6),0 1px 2px rgba(0,0,0,.5),0 10px 22px -12px rgba(0,0,0,.9)}
-[data-theme=dark] .btn.primary:hover{box-shadow:inset 0 1px 0 rgba(255,255,255,.6),0 0 0 3px var(--glow),0 10px 24px -12px rgba(0,0,0,.9)}
+@media(hover:hover) and (pointer:fine){[data-theme=dark] .btn.primary:hover{box-shadow:inset 0 1px 0 rgba(255,255,255,.6),0 0 0 3px var(--glow),0 10px 24px -12px rgba(0,0,0,.9)}}
 [data-theme=dark] .rcard.on{box-shadow:inset 0 1px 0 rgba(255,255,255,.6),0 0 0 3px var(--glow),0 10px 26px -14px rgba(0,0,0,.9)}
 [data-theme=dark] .toast{background:rgba(34,39,47,.82);border-color:rgba(255,255,255,.14)}
+
+/* =====================================================================
+   v5.8.0 — Sensação de app no celular/tablet (base "mobile-native")
+   ===================================================================== */
+/* o arrasto para recarregar não deve disparar no meio do preenchimento; listas internas não arrastam a página junto */
+html,body{overscroll-behavior-y:none}
+#rows,.tw,dialog.dlg,.steps{overscroll-behavior:contain}
+/* toque: sem espera de duplo toque e sem selecionar o texto do botão ao segurar */
+button,a,summary,label.switch,[role=button],[role=radio],[role=checkbox]{touch-action:manipulation}
+button,summary,.chip,.rcard,.seg-b,.ap,.step,.pill,label.switch{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+/* iPhone dá zoom em campo com letra menor que 16 px: garante o mínimo em telas de toque */
+@media(pointer:coarse){input:not([type=checkbox]):not([type=radio]),select,textarea{font-size:16px}}
+/* altura real da tela no celular (100vh conta a barra do navegador recolhida e corta o fim) */
+.login{min-height:100vh;min-height:100svh}
+.list-p{max-height:calc(100vh - var(--bar-h) - 40px);max-height:calc(100dvh - var(--bar-h) - 40px)}
+/* celular deitado: o conteúdo não entra embaixo do entalhe */
+.topbar{padding-left:max(20px,env(safe-area-inset-left));padding-right:max(20px,env(safe-area-inset-right))}
+.container{padding-left:max(20px,env(safe-area-inset-left));padding-right:max(20px,env(safe-area-inset-right))}
+@media(max-width:640px){
+  .topbar{padding-left:max(14px,env(safe-area-inset-left));padding-right:max(14px,env(safe-area-inset-right))}
+  .container{padding-left:max(14px,env(safe-area-inset-left));padding-right:max(14px,env(safe-area-inset-right))}
+}
+/* celular estreito: a barra superior estourava ~22 px. A pílula de sincronização vira só o ponto de status
+   (o texto continua para leitor de tela e no toque abre o detalhe, como antes) */
+@media(max-width:480px){
+  .bar-r{gap:6px}
+  #syncpill{min-width:44px;min-height:44px;justify-content:center;padding:0}
+  #syncpill span{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+  #savestate{padding:0 10px}
+}
