@@ -9,7 +9,7 @@ async function device(b,seed){
   await ctx.route('**/service-worker.js',r=>r.fulfill({status:404,body:''}));
   if(seed)await ctx.addInitScript(s=>{if(!sessionStorage.getItem('seeded')){localStorage.setItem('__mockdb',s);sessionStorage.setItem('seeded','1')}},seed);
   const pg=await ctx.newPage();pg.on('pageerror',e=>console.log('PAGEERR',e.message));
-  await pg.goto('(process.env.URL||'http://localhost:8765/index.html')');await pg.waitForSelector('#lg',{timeout:20000});
+  await pg.goto((process.env.URL||'http://localhost:8765/index.html'));await pg.waitForSelector('#lg',{timeout:20000});
   await pg.fill('#lg','a@minc.com');await pg.fill('input[type=password]','x');await pg.keyboard.press('Enter');
   await pg.waitForSelector('[data-act=newProcess]',{timeout:20000});await pg.waitForTimeout(800);
   return pg;
@@ -68,5 +68,24 @@ const run=pg=>pg.evaluate(async()=>{Sync.running=false;await Sync.run();await ne
   await run(A);db=await A.evaluate(()=>__mock.db());
   ok(!Object.keys(db.files).some(k=>k.includes('/fotos/')),'foto apagada da pasta na nuvem');
   ok(db.tables.photos.length===1,'registro da foto removido');
+  // limites do banco (migração 009): valor > 200 na coluna volta inteiro; observação > 4.000 não trava os outros
+  const lim=await A.evaluate(async()=>{
+    const longo='VÁLVULA '+'X'.repeat(242);
+    const mk=o=>{const r=normalize({id:uid('REP'),createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),status:'Rascunho',process:'9',pedido:'P',ordem:'',equipamento:'E',cliente:'C',observacoes:'',createdBy:'A',updatedBy:'A',...o});r._dirty=true;PROCS.unshift(r);return r};
+    const grande=mk({equipamento:longo}),ruim=mk({observacoes:'o'.repeat(4001)}),bom=mk({equipamento:'NORMAL'});
+    await Promise.all([grande,ruim,bom].map(p=>Store.put('processes',p)));
+    Sync.running=false;await Sync.run();
+    const db=__mock.db().tables.processes,col=db.find(x=>x.id===grande.id);
+    return{estado:Sync.state,grandeCol:col&&col.equipamento.length,grandeData:col&&col.data.equipamento.length,ruimNaNuvem:!!db.find(x=>x.id===ruim.id),ruimPendente:ruim._dirty,bomNaNuvem:!!db.find(x=>x.id===bom.id),ids:[grande.id]};
+  });
+  console.log('  limites:',JSON.stringify(lim));
+  ok(lim.estado==='idle','processo acima do limite não derruba a sincronização');
+  ok(lim.bomNaNuvem,'os outros processos continuam sendo enviados');
+  ok(!lim.ruimNaNuvem&&lim.ruimPendente,'o processo acima do limite fica pendente no aparelho (nada se perde)');
+  ok(lim.grandeCol===200&&lim.grandeData===250,'coluna cortada em 200, valor completo guardado no JSON');
+  const seed2=await A.evaluate(()=>JSON.stringify(__mock.db()));
+  const C=await device(b,seed2);await run(C);
+  const volta=await C.evaluate(id=>PROCS.find(x=>x.id===id)?.equipamento.length,lim.ids[0]);
+  ok(volta===250,'outro aparelho recebe o valor completo (250), não o cortado');
   await b.close();
 })();

@@ -1,6 +1,6 @@
 -- =====================================================================
 -- MINC · Peritagem — esquema do Supabase (JÁ APLICADO no projeto "minc-peritagem")
--- Este arquivo é a documentação/backup do que foi executado (migrações 001 a 008).
+-- Este arquivo é a documentação/backup do que foi executado (migrações 001 a 009).
 -- Só rode de novo em um projeto NOVO e vazio.
 -- =====================================================================
 
@@ -279,3 +279,8 @@ create table public.admin_audit (
 create index admin_audit_at_idx on public.admin_audit (at desc);
 alter table public.admin_audit enable row level security;
 create policy "auditoria: ver" on public.admin_audit for select to authenticated using ((select private.is_admin()));
+
+-- 10) LIMITES DE TAMANHO (migração 009, v5.9.0) — texto completo em supabase/migrations/009_limites_de_tamanho.sql
+--     processes: process_no/pedido/ordem/equipamento/cliente <= 200; data->>'observacoes' <= 4000; data <= 5 MB
+--     photos: name <= 300, storage_path <= 512 · process_documents: file_name <= 300, note <= 4000, caminhos <= 512
+--     catálogos: name <= 200 · profiles: name <= 120 (handle_new_user corta em 120)

@@ -137,6 +137,7 @@ async function toBlob(file){
   c.getContext('2d').drawImage(bmp,0,0,c.width,c.height);bmp.close&&bmp.close();
   return new Promise((ok,no)=>c.toBlob(b=>b?ok(b):no(new Error('blob')),'image/jpeg',.75));
 }
+const shortName=(n,max=200)=>{n=String(n||'');if(n.length<=max)return n;const e=fileExt(n);return n.slice(0,max-e.length-1)+'…'+e};
 const IMG_EXT=/\.(jpe?g|png|gif|webp|bmp|heic|heif|avif)$/i,MAX_ANEXO=25*1024*1024;
 const isImg=f=>/^image\//.test(f.type||'')||IMG_EXT.test(f.name||'');
 const fileExt=n=>{const m=/\.([A-Za-z0-9]{1,8})$/.exec(n||'');return m?'.'+m[1].toLowerCase():''};
@@ -148,14 +149,15 @@ async function addPhotos(files,target){
   let nf=0,na=0,fail=0,big=0;const newIds=[];
   for(const f of list){
     try{
-      if(isImg(f)){const blob=await toBlob(f),id=uid('IMG');
-        await Store.put('photos',{id,procId:r.id,blob,name:f.name||'foto.jpg',at:Date.now()});
-        Photos.urls.set(id,URL.createObjectURL(blob));arr.push({id,name:f.name||'foto.jpg'});newIds.push(id);nf++}
+      if(isImg(f)){const blob=await toBlob(f),id=uid('IMG'),nm=shortName(f.name||'foto.jpg');
+        await Store.put('photos',{id,procId:r.id,blob,name:nm,at:Date.now()});
+        Photos.urls.set(id,URL.createObjectURL(blob));arr.push({id,name:nm});newIds.push(id);nf++}
       else{
         if(f.size>MAX_ANEXO){big++;continue}
         const id=uid('ANX'),ext=fileExt(f.name),type=f.type||'application/octet-stream';
-        await Store.put('photos',{id,procId:r.id,blob:f,name:f.name||'arquivo'+ext,at:Date.now(),kind:'file',ext,type});
-        Photos.urls.set(id,URL.createObjectURL(f));anx.push({id,name:f.name||'arquivo'+ext,type,size:f.size,ext});newIds.push('ax-'+id);na++}
+        const nm=shortName(f.name||'arquivo'+ext);
+        await Store.put('photos',{id,procId:r.id,blob:f,name:nm,at:Date.now(),kind:'file',ext,type});
+        Photos.urls.set(id,URL.createObjectURL(f));anx.push({id,name:nm,type,size:f.size,ext});newIds.push('ax-'+id);na++}
     }catch(e){console.error(e);fail++}
   }
   t.close();changed(r);S.pulse=newIds.map(id=>/^ax-/.test(id)?id:'ph-'+id);renderMain();
@@ -957,7 +959,7 @@ const Docs={
   async generate(r,note){
     const {bytes,pages}=await buildPdf(r);
     const when=new Date(),rec={id:uuid4(),procId:r.id,bytes,pages,snapshot:JSON.stringify({form:FORM,generatedAt:when.toISOString(),generatedBy:S.user?.name||'',process:toRow(r)}),
-      fileName:docFileName(r,when),note:emp(note)?'':String(note).trim(),size:bytes.byteLength,sha256:await sha256(bytes),formCode:FORM.codigo,formRev:FORM.rev||'',processRev:r._rev??null,byName:S.user?.name||'',at:when.toISOString(),up:false};
+      fileName:docFileName(r,when),note:emp(note)?'':String(note).trim().slice(0,4000),size:bytes.byteLength,sha256:await sha256(bytes),formCode:FORM.codigo,formRev:FORM.rev||'',processRev:r._rev??null,byName:S.user?.name||'',at:when.toISOString(),up:false};
     if(!CLOUD)return rec;          // modo local: só baixa
     await Store.put('docs',rec);
     this.pending.set(r.id,[rec,...(this.pending.get(r.id)||[])]);this.loaded.add(r.id);
@@ -1109,10 +1111,12 @@ const cloudPath=(pasta,r)=>r.file||r.kind==='file'?`${pasta}/anexos/${r.id}${ane
 const legacyPath=(pid,r)=>`${pid}/${r.id}.jpg`;
 function toRow(p){
   const data={};for(const k of Object.keys(p))if(!k.startsWith('_'))data[k]=p[k];
-  return{id:p.id,process_no:p.process||null,pedido:p.pedido||null,ordem:p.ordem||null,equipamento:p.equipamento||null,cliente:p.cliente||null,status:p.status,deleted_at:p.deletedAt||null,data};
+  const c200=v=>v?String(v).slice(0,200):null;
+  return{id:p.id,process_no:c200(p.process),pedido:c200(p.pedido),ordem:c200(p.ordem),equipamento:c200(p.equipamento),cliente:c200(p.cliente),status:p.status,deleted_at:p.deletedAt||null,data};
 }
 function fromRow(r){
-  const o={...(r.data||{}),id:r.id,process:r.process_no||'',pedido:r.pedido||'',ordem:r.ordem||'',equipamento:r.equipamento||'',cliente:r.cliente||'',status:r.status,updatedAt:r.updated_at,_rev:r.rev,_dirty:false,_conflict:null};
+  const d=r.data||{},full=(k,col)=>{const v=d[k];return typeof v==='string'&&col&&v.length>col.length&&v.startsWith(col)?v:(col||'')};   // coluna cortada em 200: usa o valor completo do JSON
+  const o={...d,id:r.id,process:full('process',r.process_no),pedido:full('pedido',r.pedido),ordem:full('ordem',r.ordem),equipamento:full('equipamento',r.equipamento),cliente:full('cliente',r.cliente),status:r.status,updatedAt:r.updated_at,_rev:r.rev,_dirty:false,_conflict:null};
   if(r.deleted_at)o.deletedAt=r.deleted_at;else delete o.deletedAt;
   return normalize(o);
 }
@@ -1183,6 +1187,7 @@ const Sync={
   async push(){
     let did=false;
     for(const p of PROCS.filter(x=>x._dirty&&!x._conflict)){
+      try{
       const snap=p.updatedAt,row=toRow(p);let out=null;
       if(p._rev==null){
         const r=await SB.from('processes').insert(row).select('rev').single();
@@ -1201,6 +1206,11 @@ const Sync={
       }
       p._rev=out.rev;if(p.updatedAt===snap)p._dirty=false;   // se foi editado durante o envio, continua pendente
       await Store.put('processes',p);did=true;
+      }catch(e){
+        // texto acima do limite do banco (migração 009): não trava a sincronização dos outros processos
+        if(e&&e.code==='23514'){console.error('limite',p.id,e.message);if(!this._limWarn){this._limWarn=true;toast('Um processo não pôde ser enviado: algum texto passa do limite. Encurte observações ou nomes muito longos.',{ms:9000})}continue}
+        throw e;
+      }
     }
     return did;
   },
@@ -1342,7 +1352,7 @@ const ACT={
     finally{b.removeAttribute?.('aria-busy')}
   },
   docGen(){
-    dialog(`<form class="dlg-body" data-submit="docgen"><h2>Gerar e arquivar documento</h2><p>Será criada uma nova versão em PDF com os dados atuais do processo. As versões anteriores continuam guardadas.</p><div class="field"><label for="dnote">Observação da versão <span class="muted">(opcional)</span></label><textarea id="dnote" name="note" rows="3" data-keep-case placeholder="Ex.: revisão após aprovação do cliente"></textarea></div><div class="actions end"><button class="btn" type="button" data-act="closeDlg">Cancelar</button><button class="btn primary" type="submit">Gerar e arquivar</button></div></form>`);
+    dialog(`<form class="dlg-body" data-submit="docgen"><h2>Gerar e arquivar documento</h2><p>Será criada uma nova versão em PDF com os dados atuais do processo. As versões anteriores continuam guardadas.</p><div class="field"><label for="dnote">Observação da versão <span class="muted">(opcional)</span></label><textarea id="dnote" name="note" rows="3" maxlength="4000" data-keep-case placeholder="Ex.: revisão após aprovação do cliente"></textarea></div><div class="actions end"><button class="btn" type="button" data-act="closeDlg">Cancelar</button><button class="btn primary" type="submit">Gerar e arquivar</button></div></form>`);
   },
   async docOpen(el){
     const d=Docs.find(el.dataset.id);if(!d)return;

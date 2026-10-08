@@ -30,7 +30,8 @@ minc-peritagem/
 - Número de processo sem espaços quebra de linha na lista em vez de ser cortado na borda.
 - Topo do processo no celular: o último dado ocupa a linha inteira (sem caixa cinza vazia).
 - Contagens com plural e milhar certos: "1 foto", "2 fotos", "1.000 cadastrados" (nada de "(s)").
-- Campos de texto limitados a 200 caracteres e observações a 4.000 (valores antigos maiores não são cortados). O banco continua sem limite.
+- Campos de texto limitados a 200 caracteres e observações a 4.000 (valores antigos maiores não são cortados).
+- **Limite também no banco (migração 009, já aplicada no Supabase):** identificação do processo até 200 caracteres, observações até 4.000, nomes de foto/anexo até 300, nomes de catálogo até 200, nome de usuário até 120. Se um processo antigo passar do limite, ele fica pendente no aparelho (com aviso) sem travar o envio dos outros; nada é apagado.
 
 ## Novidades da v5.8.0
 **Troca de status animada**

@@ -17,6 +17,11 @@
     then(a,b){return Promise.resolve().then(()=>this.run()).then(a,b)}
     run(){
       const T=db.tables[this.t]=db.tables[this.t]||[],m=r=>this.f.every(f=>f(r));let out;
+      // regras de tamanho da migração 009 (o banco real recusa com o código 23514)
+      if(this.t==='processes'&&(this.op==='insert'||this.op==='update')){
+        const rows=this.op==='insert'?this.rows:[this.patch];
+        for(const r of rows){if(['process_no','pedido','ordem','equipamento','cliente'].some(k=>r[k]&&String(r[k]).length>200)||String((r.data||{}).observacoes||'').length>4000)return{data:null,error:{code:'23514',message:'new row violates check constraint'}}}
+      }
       if(this.op==='insert'){
         for(const r of this.rows)if(r.id&&T.some(x=>x.id===r.id))return{data:null,error:{code:'23505',message:'duplicate key'}};
         out=this.rows.map(r=>{const n={...r};if(this.t==='processes'){n.rev=1;n.updated_at=ts();n.created_at=n.updated_at}
