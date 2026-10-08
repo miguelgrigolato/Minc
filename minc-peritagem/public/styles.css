@@ -884,3 +884,41 @@ button,summary,.chip,.rcard,.seg-b,.ap,.step,.pill,label.switch{-webkit-user-sel
   #syncpill span{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
   #savestate{padding:0 10px}
 }
+
+/* =====================================================================
+   v5.9.0 — correções do teste de pior caso (tests/pior-caso) + borda preta nas fotos do documento
+   ===================================================================== */
+/* #1 anexos: nome longo não empurra a lixeira para fora nem alarga a página (corta com "…"; nome inteiro no toque/mouse) */
+.anx-list{grid-template-columns:minmax(0,1fr)}
+.anx{min-width:0}
+.anx>.iconb{flex-shrink:0}
+/* #2 status ocupa a linha inteira da Identificação: "Concluído" não é mais cortado */
+.st-field{grid-column:1/-1}
+.st-field .seg{max-width:560px}
+@media(min-width:481px){.st-field .seg-b{white-space:nowrap}}
+/* #3 lista longa: botão "Mostrar mais" no fim */
+.more-rows{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;min-height:56px;padding:0 16px;border:0;border-top:1px solid var(--line);background:var(--surface-2);font-weight:600;color:var(--text)}
+.more-rows small{color:var(--muted);font-weight:500}
+@media(hover:hover) and (pointer:fine){.more-rows:hover{background:var(--surface-3)}}
+.more-rows:active{background:var(--surface-3)}
+/* #4 nome do usuário na barra: uma linha só, corta com "…" */
+.userchip{max-width:min(240px,22vw);min-width:0;overflow:hidden;justify-items:stretch}
+.userchip span{display:block;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* #5 foto que ainda não está neste aparelho */
+.ph-wait{display:grid;place-items:center;align-content:center;gap:6px;width:100%;height:100%;padding:10px;text-align:center;color:var(--muted);background:repeating-linear-gradient(135deg,var(--surface-2) 0 10px,var(--surface-3) 10px 20px)}
+.ph-wait small{font-size:12px;line-height:1.3}
+/* #6 número de processo sem espaços quebra em vez de ser cortado na borda */
+.row-t small{overflow-wrap:anywhere}
+/* #7 topo do processo no celular: o último dado ocupa a linha inteira em vez de deixar uma caixa vazia */
+@media(max-width:640px){.cb-grid>.cb-c:last-child:nth-child(even){grid-column:1/-1}}
+
+/* fotos do documento: borda preta fina em cada foto (tela e impressão; o PDF arquivado desenha a mesma borda) */
+.report-photo{border:1.5px solid #000;border-radius:0;background:#fff}
+.report-photo.rp-miss{display:inline-grid;place-items:center;font-size:11px;color:#555;border-style:dashed}
+@media print{.report-photo{border:1px solid #000}}
+/* celular bem estreito (320–400 px): as três opções de status cabem sem alargar a página */
+@media(max-width:640px){.grid.g2,.grid.g3,.grid.g4{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:400px){
+  .st-field .seg-b{min-width:0;padding:0 5px;gap:5px;font-size:13px}
+  .st-field .seg-b .dot{width:8px;height:8px}
+}

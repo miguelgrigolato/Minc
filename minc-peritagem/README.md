@@ -18,6 +18,20 @@ minc-peritagem/
 └─ DEPLOY-NETLIFY.md   ← passo a passo da publicação
 ```
 
+## Novidades da v5.9.0
+**Fotos do documento com borda preta:** cada foto ganha um contorno preto fino na tela, na impressão e no PDF arquivado (no PDF a borda contorna a própria foto, em qualquer proporção).
+
+**Correções do teste de pior caso** (`tests/pior-caso`)
+- Anexo com nome longo não empurra mais a lixeira para fora da tela nem alarga a página: o nome é cortado com "…" e aparece inteiro ao passar o dedo/mouse.
+- Status (Rascunho / Em execução / Concluído) ocupa a linha inteira da Identificação: "Concluído" não é mais cortado. Em celular de 320 px as três opções cabem.
+- Lista de processos mostra 100 por vez, com "Mostrar mais". Com 1.000 processos: voltar para "Todos" caiu de ~960 ms para ~40 ms; cada tecla na busca, de ~300 ms para ~80 ms. Selecionar um processo não redesenha mais a lista inteira.
+- Nome de usuário longo na barra superior fica numa linha só, cortado com "…".
+- Foto que ainda não foi baixada neste aparelho mostra um quadro "Foto ainda não baixada" em vez do ícone de imagem quebrada (no documento: "Foto não baixada").
+- Número de processo sem espaços quebra de linha na lista em vez de ser cortado na borda.
+- Topo do processo no celular: o último dado ocupa a linha inteira (sem caixa cinza vazia).
+- Contagens com plural e milhar certos: "1 foto", "2 fotos", "1.000 cadastrados" (nada de "(s)").
+- Campos de texto limitados a 200 caracteres e observações a 4.000 (valores antigos maiores não são cortados). O banco continua sem limite.
+
 ## Novidades da v5.8.0
 **Troca de status animada**
 - Em Rascunho / Em execução / Concluído (e nos outros controles do mesmo tipo: Estrutura/Lista de compras, abas da Administração) a pílula escura **desliza** da opção anterior até a nova em 260 ms; fundo e texto trocam juntos, sem cor intermediária. O selo de status no topo do processo entra com o valor novo.
