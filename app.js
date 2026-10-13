@@ -2,7 +2,7 @@
 /* MINC · Peritagem — v5.9.0
    Organização: utilitários → Store (IndexedDB) → Fotos → Auth → Regras (validação) → Telas → Ações/eventos → Boot */
 
-const APP_VERSION='5.12.0';
+const APP_VERSION='5.13.0';
 /* v5.11.0: módulos novos ficam em modelos.js (banco de modelos de válvula + checklist de entrega) e rts.js (Relatório Técnico de Serviço).
    Eles se registram em window.MINC_EXT (act/chg/sub/inp/views) e são mesclados aqui antes do boot(). */
 const EXT=window.MINC_EXT=window.MINC_EXT||{};
@@ -433,6 +433,7 @@ function applic({on,act,extra='',yes='Aplica',no='Não se aplica'}){
 /* navegação principal: Peritagens | RTS (módulos novos aparecem aqui) */
 const NAV_RTS=['rts','rtsEdit'];
 function topNav(){
+  if(!(window.Settings&&Settings.rtsOn()))return'';   // com a aba RTS desligada (Administração > Configurações) não há o que alternar
   const rts=NAV_RTS.includes(S.screen),per=!rts&&S.screen!=='admin';
   return `<nav class="topnav" aria-label="Módulos"><button class="tn-b ${per?'on':''}" data-act="home" ${per?'aria-current="page"':''}>Peritagens</button><button class="tn-b ${rts?'on':''}" data-act="rtsHome" ${rts?'aria-current="page"':''}>RTS</button></nav>`;
 }
@@ -1079,7 +1080,7 @@ function vAdmin(){
   const us=Auth.list();
   return `<div class="ph"><button class="btn ghost" data-act="home">${ic('back')}Voltar</button><h1>Administração</h1><p>Usuários com acesso a este aparelho.</p></div>
 <div class="panel"><h2>Novo usuário</h2><form data-submit="newUser"><div class="grid g4"><div class="field"><label for="un">Nome</label><input id="un" name="name" required autocomplete="off"><label class="switch name-caps"><input type="checkbox" name="caps" id="un-caps" data-chg="nameCaps" checked><span class="track"></span><span>Nome em CAIXA ALTA</span></label></div><div class="field"><label for="ul">Login</label><input id="ul" name="login" required data-keep-case autocapitalize="off"></div><div class="field"><label for="up">Senha temporária</label><input id="up" name="pw" type="password" required minlength="6" autocomplete="new-password"></div><div class="field"><label for="ur">Perfil</label><select id="ur" name="role"><option>Funcionário</option><option>Administrador</option></select></div></div><p class="hint">O usuário troca a senha no primeiro acesso. O controle de acesso é local, neste aparelho; perfis e auditoria centralizados dependem do banco de dados central.</p><button class="btn primary" type="submit">Cadastrar usuário</button></form></div>
-<div class="panel"><div class="tw"><table class="tbl"><thead><tr><th>Nome</th><th>Login</th><th>Perfil</th><th></th></tr></thead><tbody>${us.map(u=>`<tr><td>${esc(u.name)}</td><td>${esc(u.login)}</td><td>${esc(u.role)}</td><td><div class="actions"><button class="btn" data-act="resetPw" data-id="${u.id}">Redefinir senha</button>${u.login==='admin'||u.id===S.user.id?'':`<button class="btn danger" data-act="delUser" data-id="${u.id}">Excluir</button>`}</div></td></tr>`).join('')}</tbody></table></div></div>${vModelsAdmin()}`;
+<div class="panel"><div class="tw"><table class="tbl"><thead><tr><th>Nome</th><th>Login</th><th>Perfil</th><th></th></tr></thead><tbody>${us.map(u=>`<tr><td>${esc(u.name)}</td><td>${esc(u.login)}</td><td>${esc(u.role)}</td><td><div class="actions"><button class="btn" data-act="resetPw" data-id="${u.id}">Redefinir senha</button>${u.login==='admin'||u.id===S.user.id?'':`<button class="btn danger" data-act="delUser" data-id="${u.id}">Excluir</button>`}</div></td></tr>`).join('')}</tbody></table></div></div>${vModelsAdmin()}${vSettingsAdmin()}`;
 }
 
 /* ============================== Nuvem (Supabase) ==============================
@@ -1144,11 +1145,12 @@ async function loadAdmin(){
   if(S.screen==='admin')renderMain();
 }
 function adminHead(){
-  return `<div class="ph"><button class="btn ghost" data-act="home">${ic('back')}Voltar</button><h1>Administração</h1><p>Usuários e catálogos usados nos formulários.</p></div><div class="seg adm-tabs" role="tablist" aria-label="Seções da administração" style="max-width:620px;margin-bottom:16px">${[['users','Usuários'],['catalog','Catálogos'],['models','Modelos de válvula']].map(([k,t])=>`<button class="seg-b ${S.adminTab===k?'on':''}" role="tab" aria-selected="${S.adminTab===k}" data-act="adminTab" data-v="${k}" data-fk="adm-${k}">${t}</button>`).join('')}</div>`;
+  return `<div class="ph"><button class="btn ghost" data-act="home">${ic('back')}Voltar</button><h1>Administração</h1><p>Usuários e catálogos usados nos formulários.</p></div><div class="seg adm-tabs" role="tablist" aria-label="Seções da administração" style="max-width:780px;margin-bottom:16px">${[['users','Usuários'],['catalog','Catálogos'],['models','Modelos de válvula'],['settings','Configurações']].map(([k,t])=>`<button class="seg-b ${S.adminTab===k?'on':''}" role="tab" aria-selected="${S.adminTab===k}" data-act="adminTab" data-v="${k}" data-fk="adm-${k}">${t}</button>`).join('')}</div>`;
 }
 function vAdminCloud(){
   if(S.adminTab==='catalog')return adminHead()+vCatalogAdmin();
   if(S.adminTab==='models')return adminHead()+vModelsAdmin();
+  if(S.adminTab==='settings')return adminHead()+vSettingsAdmin();
   const a=S.admin||{};
   const opts=[['admin','Administrador'],['operador','Funcionário'],['pendente','Aguardando aprovação']];
   const novo=`<div class="panel"><h2>Novo usuário com e-mail</h2><p class="hint">A pessoa recebe um convite por e-mail e define a própria senha.</p><form data-submit="inviteUser"><div class="grid g4"><div class="field"><label for="nu-name">Nome</label><input id="nu-name" name="name" required minlength="2" autocomplete="off"><label class="switch name-caps"><input type="checkbox" name="caps" id="nu-caps" data-chg="nameCaps" checked><span class="track"></span><span>Nome em CAIXA ALTA</span></label></div><div class="field"><label for="nu-email">E-mail</label><input id="nu-email" name="email" type="email" required data-keep-case autocapitalize="off" autocomplete="off"></div><div class="field"><label for="nu-role">Perfil</label><select id="nu-role" name="role"><option value="operador">Funcionário</option><option value="admin">Administrador</option></select></div><div class="field"><label for="nu-mode">Como enviar o acesso</label><select id="nu-mode" name="mode"><option value="email">Enviar convite por e-mail</option><option value="link">Gerar link para eu enviar</option></select></div></div><button class="btn primary" type="submit">${ic('plus')}Cadastrar usuário</button></form></div>`;
@@ -1441,7 +1443,7 @@ const ACT={
     finally{b.removeAttribute?.('aria-busy')}
   },
   /* administração: abas e catálogos */
-  adminTab(el){S.adminTab=el.dataset.v;renderMain();if(S.adminTab==='models'&&CLOUD)Models.refresh().then(ch=>{if(ch&&S.screen==='admin')renderMain()}).catch(()=>{});if(S.adminTab==='catalog'&&CLOUD)Catalog.refresh().then(ch=>{if(ch&&S.screen==='admin')renderMain()}).catch(()=>{})},
+  adminTab(el){S.adminTab=el.dataset.v;renderMain();if(S.adminTab==='settings'&&CLOUD)Settings.refresh().then(ch=>{if(ch&&S.screen==='admin')renderMain()}).catch(()=>{});if(S.adminTab==='models'&&CLOUD)Models.refresh().then(ch=>{if(ch&&S.screen==='admin')renderMain()}).catch(()=>{});if(S.adminTab==='catalog'&&CLOUD)Catalog.refresh().then(ch=>{if(ch&&S.screen==='admin')renderMain()}).catch(()=>{})},
   async catMove(el){
     const {t,id,parent}=el.dataset,d=+el.dataset.dir,list=catList(t,parent),i=list.findIndex(x=>x.id===id),k=i+d;
     if(i<0||k<0||k>=list.length)return;

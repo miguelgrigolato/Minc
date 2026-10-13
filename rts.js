@@ -346,6 +346,7 @@ const clearApproval=r=>{r.aprovadoPor='';r.aprovadoEm='';r.aprovadoPorId='';r.en
 const need=(r,msg)=>{if(locked(r)){toast(msg||'RTS travado: reabra para edição.');return false}return true};
 Object.assign(MX.act,{
   rtsHome(){
+    if(window.Settings&&!Settings.rtsOn()){toast('A aba RTS está desligada. O administrador liga em Administração > Configurações.');return}
     if(S.screen==='rts'){scrollTo({top:0,behavior:RM()?'auto':'smooth'});return}
     RtsSave.flush();S.id=null;S.errs=null;S.screen='rts';S.anim='up';render();scrollTo(0,0);
     if(window.Sync)Sync.kick(500);

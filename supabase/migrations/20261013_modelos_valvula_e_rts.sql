@@ -1,5 +1,5 @@
 -- MINC Peritagem v5.11.0 — Banco de modelos de válvula (projetos) e módulo RTS.
--- NÃO aplicada automaticamente. Reaproveita as funções e regras que já existem no projeto:
+-- APLICADA em 13/10/2026 no projeto minc-peritagem. Reaproveita as funções e regras que já existem no projeto:
 --   private.is_member()  -> admin ou operador ativo
 --   private.is_admin()   -> administrador ativo
 --   public.touch_process() -> gatilho que incrementa rev, updated_at e updated_by em todo UPDATE
@@ -81,3 +81,25 @@ end $$;
 
 create trigger rts_documents_guard before insert or update on public.rts_documents
   for each row execute function public.rts_guard_approval();
+-- função de gatilho: ninguém precisa (nem deve) poder chamá-la pela API
+revoke execute on function public.rts_guard_approval() from public, anon, authenticated;
+
+-- ============================ Configurações do app (liga/desliga módulos) ============================
+-- Uma linha por chave. "modulos" = {"rts": false} -> a aba RTS começa DESLIGADA e o administrador liga em Administração > Configurações.
+create table if not exists public.app_settings (
+  key        text primary key check (char_length(key) <= 100),
+  value      jsonb not null default '{}'::jsonb,
+  updated_by uuid default auth.uid() references auth.users(id),
+  updated_at timestamptz not null default now()
+);
+alter table public.app_settings enable row level security;
+
+create policy "config: ver"     on public.app_settings for select using ((select private.is_member()));
+create policy "config: criar"   on public.app_settings for insert with check ((select private.is_admin()));
+create policy "config: editar"  on public.app_settings for update using ((select private.is_admin())) with check ((select private.is_admin()));
+create policy "config: excluir" on public.app_settings for delete using ((select private.is_admin()));
+
+create trigger app_settings_touch before update on public.app_settings
+  for each row execute function public.touch_catalog();
+
+insert into public.app_settings (key, value) values ('modulos', '{"rts": false}'::jsonb) on conflict (key) do nothing;

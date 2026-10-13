@@ -1,4 +1,4 @@
-# Minc — Peritagem (v5.12.0)
+# Minc — Peritagem (v5.13.0)
 
 App web (PWA) de peritagem e recuperação de equipamentos da Indústrias Minc. Sem build: arquivos estáticos
 (`index.html`, `app.js`, ...). Dados no Supabase (projeto `minc-peritagem`) com cópia local no aparelho.
@@ -11,6 +11,10 @@ App web (PWA) de peritagem e recuperação de equipamentos da Indústrias Minc. 
 - **RTS (Relatório Técnico de Serviço)** — aba "RTS" no topo (`rts.js`), independente da peritagem. POS com providência,
   atividades padrão (`catalogo.js` > `RTS_BIBLIOTECA`), lista de materiais e PDF no layout R-MINC-060-RTS-PT.
 
+## v5.13.0 — Configurações
+- Administração > **Configurações**: o administrador liga/desliga módulos para todos os usuários (`ajustes.js`, tabela `app_settings`).
+  A aba **RTS** vem **desligada** por padrão; desligada, a aba some, mas os RTS já criados continuam guardados.
+
 ## v5.12.0 — RTS a partir dos RTS reais (1135, 1168, 1188)
 - **Aprovação dentro do app**: Rascunho → Aguardando aprovação → Aprovado. Só o administrador aprova ou devolve (com motivo);
   o RTS fica travado fora do rascunho; o PDF só sai com "Aprovado por" depois da aprovação (antes, marca d'água).
@@ -20,9 +24,8 @@ App web (PWA) de peritagem e recuperação de equipamentos da Indústrias Minc. 
 - Só o administrador cadastra/edita modelos de válvula (tela e regra do banco).
 
 ## Banco de dados
-A migração `supabase/migrations/20261013_modelos_valvula_e_rts.sql` cria `valve_models` e `rts_documents`
-(com RLS iguais às das demais tabelas). **Aplique-a antes de usar os módulos com a nuvem ligada**; sem ela o app
-continua funcionando e guarda modelos/RTS só neste aparelho.
+A migração `supabase/migrations/20261013_modelos_valvula_e_rts.sql` (já aplicada no projeto `minc-peritagem`) cria `valve_models`,
+`rts_documents` e `app_settings`, com RLS iguais às das demais tabelas. Sem ela o app continua funcionando e guarda tudo só no aparelho.
 
 ## Estrutura dos módulos
 `modelos.js` e `rts.js` carregam antes do `app.js` e se registram em `window.MINC_EXT` (`act`, `chg`, `sub`, `inp`, `views`,
