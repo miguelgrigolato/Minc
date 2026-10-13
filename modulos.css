@@ -1,0 +1,74 @@
+/* MINC · Peritagem — estilos dos módulos novos (v5.11.0): navegação, modelos de válvula, checklist e RTS.
+   Usa as mesmas variáveis do styles.css para acompanhar o tema claro/escuro. */
+
+/* navegação principal (Peritagens | RTS) na barra superior */
+.topnav{display:flex;gap:4px;margin-left:12px;flex:0 0 auto}
+.tn-b{min-height:36px;padding:0 14px;border:1.5px solid rgba(255,255,255,.28);border-radius:999px;background:transparent;color:#d8d8d8;font:inherit;font-size:14px;font-weight:600}
+.tn-b.on{background:#fff;border-color:#fff;color:#111}
+@media(hover:hover) and (pointer:fine){.tn-b:not(.on):hover{border-color:#fff;color:#fff}}
+/* celular: a navegação desce para uma segunda linha da barra */
+@media(max-width:700px){.topbar{flex-wrap:wrap;padding-bottom:8px}.topnav{order:3;flex:1 1 100%;margin:6px 0 0}.tn-b{flex:1;font-size:14px}}
+
+/* aviso do projeto na aba Componentes */
+.mdl-hint{display:flex;flex-direction:column;gap:2px;margin:0 0 14px;padding:12px 16px;border:1px solid var(--line);border-left:6px solid var(--ink);border-radius:4px;background:var(--surface)}
+.mdl-hint span{color:var(--muted);font-size:14px}
+
+/* administração > modelos de válvula */
+.mdl-list{display:flex;flex-direction:column;gap:8px;margin-top:14px}
+.mdl-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;border:1px solid var(--line);border-radius:4px;flex-wrap:wrap}
+.mdl-row.off .mdl-i b{text-decoration:line-through;color:var(--muted)}
+.mdl-i{display:flex;flex-direction:column;gap:2px;min-width:200px;flex:1}
+.mdl-i small{color:var(--muted)}
+.mdl-comps{display:flex;flex-direction:column;gap:6px}
+.mdl-ch,.mdl-c{display:grid;grid-template-columns:84px minmax(160px,1fr) 80px 82px 132px;gap:8px;align-items:center}
+.mdl-ch{font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.mdl-mv{display:flex;gap:2px}
+@media(max-width:720px){
+  .mdl-ch{display:none}
+  .mdl-c{grid-template-columns:70px 1fr 64px 70px;padding:8px 0;border-bottom:1px solid var(--line)}
+  .mdl-c .mdl-mv{grid-column:1/-1;justify-content:flex-end}
+}
+
+/* campos largos em grades */
+.field.sp2{grid-column:span 2}
+@media(max-width:720px){.field.sp2{grid-column:auto}}
+
+/* RTS — lista */
+.rts-home{max-width:980px;margin:0 auto}
+.rts-rows{display:flex;flex-direction:column;gap:8px;margin-top:14px}
+.rts-row{display:flex;flex-direction:column;gap:3px;text-align:left;width:100%;padding:14px 16px;border:1px solid var(--line);border-radius:4px;background:var(--surface);font:inherit;color:inherit}
+@media(hover:hover) and (pointer:fine){.rts-row:hover{border-color:var(--ink)}}
+.rts-r1{display:flex;align-items:center;gap:10px;font-size:17px}
+.rts-r2{font-weight:600}
+.rts-r3{color:var(--muted);font-size:13px}
+
+/* RTS — editor */
+.rts-edit{max-width:980px;margin:0 auto}
+.rts-ta{width:100%;min-height:44px;resize:vertical;field-sizing:content;line-height:1.4}
+.rts-conf{margin-bottom:16px}
+.rts-model{display:flex;gap:10px;align-items:end;margin-top:10px;flex-wrap:wrap}
+.rts-model .field{flex:1;min-width:240px;margin-bottom:0}
+.rts-act{display:grid;grid-template-columns:34px minmax(0,1fr) auto;gap:8px;align-items:start;margin-bottom:6px}
+.rts-n{display:inline-flex;align-items:center;justify-content:center;min-height:44px;font-weight:700;color:var(--muted)}
+.rts-mv{display:flex;gap:2px;align-items:center}
+.rts-pos{border:1px solid var(--line);border-radius:4px;padding:14px;margin-top:14px;background:var(--bg,transparent)}
+.rts-ph{display:grid;grid-template-columns:90px minmax(0,1fr) auto;gap:10px;align-items:end;margin-bottom:6px}
+.rts-ph .field{margin-bottom:0}
+.rts-provs{margin:8px 0}
+.rts-title{font-weight:700;font-size:14px;letter-spacing:.01em;padding:8px 10px;margin:4px 0 10px;border-left:6px solid var(--ink);background:var(--surface);word-break:break-word}
+.rts-addrow{margin-top:8px;align-items:center}
+.rts-addrow select{max-width:100%;min-height:44px}
+.rts-more{margin-top:10px}
+.rts-more summary{cursor:pointer;font-weight:600;padding:8px 0}
+.rts-mats{display:flex;flex-direction:column;gap:6px;margin-top:12px}
+.rts-mh,.rts-mat{display:grid;grid-template-columns:minmax(0,1fr) 80px 80px 44px;gap:8px;align-items:center}
+.rts-mh{font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.rts-foot{margin-top:8px;margin-bottom:40px}
+@media(max-width:720px){
+  .rts-ph{grid-template-columns:70px 1fr}
+  .rts-ph .rts-mv{grid-column:1/-1;justify-content:flex-end}
+  .rts-act{grid-template-columns:28px minmax(0,1fr)}
+  .rts-act .rts-mv{grid-column:2;justify-content:flex-end}
+  .rts-mh,.rts-mat{grid-template-columns:minmax(0,1fr) 60px 60px 44px}
+}
+@media print{.topnav{display:none}}

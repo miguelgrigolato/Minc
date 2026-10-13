@@ -2,7 +2,12 @@
 /* MINC · Peritagem — v5.9.0
    Organização: utilitários → Store (IndexedDB) → Fotos → Auth → Regras (validação) → Telas → Ações/eventos → Boot */
 
-const APP_VERSION='5.10.0';
+const APP_VERSION='5.11.0';
+/* v5.11.0: módulos novos ficam em modelos.js (banco de modelos de válvula + checklist de entrega) e rts.js (Relatório Técnico de Serviço).
+   Eles se registram em window.MINC_EXT (act/chg/sub/inp/views) e são mesclados aqui antes do boot(). */
+const EXT=window.MINC_EXT=window.MINC_EXT||{};
+for(const k of ['act','chg','sub','inp','views'])EXT[k]=EXT[k]||{};
+EXT.sync=EXT.sync||[];EXT.boot=EXT.boot||[];   // funções async chamadas a cada sincronização (modelos, RTS); devolvem true se algo mudou
 
 /* ============================== Utilitários ============================== */
 const $=(s,r=document)=>r.querySelector(s);
@@ -83,8 +88,8 @@ const Store={
   },
   _open(){return new Promise((ok,no)=>{
     if(!window.indexedDB)return no(new Error('no-idb'));
-    const r=indexedDB.open('minc_peritagem',2);
-    r.onupgradeneeded=()=>{const d=r.result,has=n=>d.objectStoreNames.contains(n);if(!has('processes'))d.createObjectStore('processes',{keyPath:'id'});if(!has('photos'))d.createObjectStore('photos',{keyPath:'id'}).createIndex('proc','procId');if(!has('docs'))d.createObjectStore('docs',{keyPath:'id'})};   // docs: PDFs gerados aguardando envio à nuvem
+    const r=indexedDB.open('minc_peritagem',3);
+    r.onupgradeneeded=()=>{const d=r.result,has=n=>d.objectStoreNames.contains(n);if(!has('processes'))d.createObjectStore('processes',{keyPath:'id'});if(!has('photos'))d.createObjectStore('photos',{keyPath:'id'}).createIndex('proc','procId');if(!has('docs'))d.createObjectStore('docs',{keyPath:'id'});if(!has('rts'))d.createObjectStore('rts',{keyPath:'id'})};   // docs: PDFs gerados aguardando envio à nuvem
     r.onsuccess=()=>{this.db=r.result;this.db.onversionchange=()=>{this.db.close();this.db=null;toast('Este app foi atualizado em outra aba. Feche e abra esta aba de novo para continuar.',{ms:9000})};ok()};
     r.onerror=()=>no(r.error);r.onblocked=()=>no(new Error('blocked: outra aba está com o banco local aberto'));
   })},
@@ -425,16 +430,22 @@ function applic({on,act,extra='',yes='Aplica',no='Não se aplica'}){
   return `<div class="appl" role="radiogroup"><button type="button" class="ap yes ${on?'on':''}" role="radio" aria-checked="${on}" data-act="${act}" data-v="1" ${extra} data-fk="ap-${act}-${String(extra).replace(/[^\w-]/g,'')}-1">${on?ic('check','ic sm'):''}${yes}</button><button type="button" class="ap no ${on?'':'on'}" role="radio" aria-checked="${!on}" data-act="${act}" data-v="0" ${extra} data-fk="ap-${act}-${String(extra).replace(/[^\w-]/g,'')}-0">${on?'':ic('x','ic sm')}${no}</button></div>`;
 }
 
+/* navegação principal: Peritagens | RTS (módulos novos aparecem aqui) */
+const NAV_RTS=['rts','rtsEdit'];
+function topNav(){
+  const rts=NAV_RTS.includes(S.screen),per=!rts&&S.screen!=='admin';
+  return `<nav class="topnav" aria-label="Módulos"><button class="tn-b ${per?'on':''}" data-act="home" ${per?'aria-current="page"':''}>Peritagens</button><button class="tn-b ${rts?'on':''}" data-act="rtsHome" ${rts?'aria-current="page"':''}>RTS</button></nav>`;
+}
 function shell(inner){
   const dark=document.documentElement.dataset.theme==='dark',sv=Sync.view();
-  return `<div class="app"><header class="topbar no-print"><button class="brand" data-act="home" aria-label="MINC Peritagem: ir para a tela inicial" title="Ir para a tela inicial"><span class="wm-b">MINC</span><span class="brand-sub">Peritagem</span></button><div class="bar-r"><button class="pill" id="syncpill" data-s="${sv.s}" data-act="syncPill" title="Sincronização com a nuvem"><i></i><span>${sv.t}</span></button><span class="pill" id="savestate" data-s="${Saver.state}"><i></i><span>${SAVE_TXT[Saver.state]}</span></span><button class="iconbtn" data-act="theme" aria-label="${dark?'Usar tema claro':'Usar tema escuro'}">${ic(dark?'sun':'moon')}</button><button class="userchip" data-act="userMenu" title="${esc(S.user?.name)}"><span>${esc(S.user?.name)}</span></button><button class="iconbtn" data-act="logout" aria-label="Sair">${ic('logout')}</button></div></header><main class="container" id="main">${inner}</main></div>`;
+  return `<div class="app"><header class="topbar no-print"><button class="brand" data-act="home" aria-label="MINC Peritagem: ir para a tela inicial" title="Ir para a tela inicial"><span class="wm-b">MINC</span><span class="brand-sub">Peritagem</span></button>${topNav()}<div class="bar-r"><button class="pill" id="syncpill" data-s="${sv.s}" data-act="syncPill" title="Sincronização com a nuvem"><i></i><span>${sv.t}</span></button><span class="pill" id="savestate" data-s="${Saver.state}"><i></i><span>${SAVE_TXT[Saver.state]}</span></span><button class="iconbtn" data-act="theme" aria-label="${dark?'Usar tema claro':'Usar tema escuro'}">${ic(dark?'sun':'moon')}</button><button class="userchip" data-act="userMenu" title="${esc(S.user?.name)}"><span>${esc(S.user?.name)}</span></button><button class="iconbtn" data-act="logout" aria-label="Sair">${ic('logout')}</button></div></header><main class="container" id="main">${inner}</main></div>`;
 }
 function view(){
   switch(S.screen){
     case'home':return vHome();case'admin':return vAdmin();
     case'process':return workspace(vProcess());case'components':return workspace(vComponents());case'test':return workspace(vTest());
     case'packaging':return workspace(vPack());case'execution':return workspace(vExec());case'structure':return workspace(vStructure());
-  }return'';
+  }return EXT.views[S.screen]?EXT.views[S.screen]():'';
 }
 function render(){
   const a=$('#app');
@@ -603,7 +614,7 @@ function vProcess(){
 /* ---------- 2. Componentes ---------- */
 function vComponents(){
   const r=cur(),n=r.components.length;
-  return `<div class="ph"><h1>Componentes</h1><p>O componente mais novo aparece no topo; os subcomponentes ficam logo abaixo do componente a que pertencem (1.1, 1.2…). Toque no cabeçalho para abrir ou fechar.</p></div>${ITENS_COMUNS.length?`<div class="panel quick"><span class="lbl">Itens comuns nos documentos</span><div class="chips fl">${ITENS_COMUNS.map(x=>`<button class="chip" data-act="addCommon" data-v="${esc(x)}" data-fk="cm-${esc(x)}">${ic('plus','ic sm')}${esc(x)}</button>`).join('')}</div></div>`:''}${n?treeList(r,{rootsDesc:true}).map(({c,no,lvl})=>vComp(c,no,lvl)).join(''):emptyBox('Nenhum componente cadastrado','Adicione o primeiro componente para registrar providência, atividades, materiais e fotos.','addComp','Adicionar componente')}`;
+  return `<div class="ph"><h1>Componentes</h1><p>O componente mais novo aparece no topo; os subcomponentes ficam logo abaixo do componente a que pertencem (1.1, 1.2…). Toque no cabeçalho para abrir ou fechar.</p></div>${window.modelHint?modelHint(r):''}${ITENS_COMUNS.length?`<div class="panel quick"><span class="lbl">Itens comuns nos documentos</span><div class="chips fl">${ITENS_COMUNS.map(x=>`<button class="chip" data-act="addCommon" data-v="${esc(x)}" data-fk="cm-${esc(x)}">${ic('plus','ic sm')}${esc(x)}</button>`).join('')}</div></div>`:''}${n?treeList(r,{rootsDesc:true}).map(({c,no,lvl})=>vComp(c,no,lvl)).join(''):emptyBox('Nenhum componente cadastrado','Adicione o primeiro componente para registrar providência, atividades, materiais e fotos.','addComp','Adicionar componente')}`;
 }
 /* seção "Subcomponentes" dentro do componente: adiciona filhos (no.1, no.2…) e dá atalho para abrir cada um */
 function vSubs(c,no){
@@ -765,7 +776,7 @@ ${comp||'<p>Nenhum componente.</p>'}${extra.join('')}${emp(r.observacoes)?'':`<d
 <table class="report-table rp-sign"><tr><th>Elaborado por / Data</th><th>Aprovado por / Data</th></tr><tr><td>${esc(r.elaboradoPor)}${r.elaboradoData?' / '+fmtISO(r.elaboradoData):''}<div class="sig"></div></td><td>${esc(r.aprovadoPor)}${r.aprovadoData?' / '+fmtISO(r.aprovadoData):''}<div class="sig"></div></td></tr></table></div>`;
 }
 function vExec(){
-  return `<div class="ph no-print"><h1>Documento de execução</h1><p>Relatório no formato do formulário ${esc(FORM.codigo)}. Gere e arquive o PDF abaixo, ou use “Baixar PDF” na barra inferior (o PDF sai com o seu nome no rodapé).</p></div>${docsPanel(cur())}${reportHTML(cur())}`;
+  return `<div class="ph no-print"><h1>Documento de execução</h1><p>Relatório no formato do formulário ${esc(FORM.codigo)}. Gere e arquive o PDF abaixo, ou use “Baixar PDF” na barra inferior (o PDF sai com o seu nome no rodapé).</p></div>${docsPanel(cur())}${window.checklistPanel?checklistPanel(cur()):''}${reportHTML(cur())}`;
 }
 
 /* ---------- 6. Estrutura ---------- */
@@ -1068,7 +1079,7 @@ function vAdmin(){
   const us=Auth.list();
   return `<div class="ph"><button class="btn ghost" data-act="home">${ic('back')}Voltar</button><h1>Administração</h1><p>Usuários com acesso a este aparelho.</p></div>
 <div class="panel"><h2>Novo usuário</h2><form data-submit="newUser"><div class="grid g4"><div class="field"><label for="un">Nome</label><input id="un" name="name" required autocomplete="off"><label class="switch name-caps"><input type="checkbox" name="caps" id="un-caps" data-chg="nameCaps" checked><span class="track"></span><span>Nome em CAIXA ALTA</span></label></div><div class="field"><label for="ul">Login</label><input id="ul" name="login" required data-keep-case autocapitalize="off"></div><div class="field"><label for="up">Senha temporária</label><input id="up" name="pw" type="password" required minlength="6" autocomplete="new-password"></div><div class="field"><label for="ur">Perfil</label><select id="ur" name="role"><option>Funcionário</option><option>Administrador</option></select></div></div><p class="hint">O usuário troca a senha no primeiro acesso. O controle de acesso é local, neste aparelho; perfis e auditoria centralizados dependem do banco de dados central.</p><button class="btn primary" type="submit">Cadastrar usuário</button></form></div>
-<div class="panel"><div class="tw"><table class="tbl"><thead><tr><th>Nome</th><th>Login</th><th>Perfil</th><th></th></tr></thead><tbody>${us.map(u=>`<tr><td>${esc(u.name)}</td><td>${esc(u.login)}</td><td>${esc(u.role)}</td><td><div class="actions"><button class="btn" data-act="resetPw" data-id="${u.id}">Redefinir senha</button>${u.login==='admin'||u.id===S.user.id?'':`<button class="btn danger" data-act="delUser" data-id="${u.id}">Excluir</button>`}</div></td></tr>`).join('')}</tbody></table></div></div>`;
+<div class="panel"><div class="tw"><table class="tbl"><thead><tr><th>Nome</th><th>Login</th><th>Perfil</th><th></th></tr></thead><tbody>${us.map(u=>`<tr><td>${esc(u.name)}</td><td>${esc(u.login)}</td><td>${esc(u.role)}</td><td><div class="actions"><button class="btn" data-act="resetPw" data-id="${u.id}">Redefinir senha</button>${u.login==='admin'||u.id===S.user.id?'':`<button class="btn danger" data-act="delUser" data-id="${u.id}">Excluir</button>`}</div></td></tr>`).join('')}</tbody></table></div></div>${vModelsAdmin()}`;
 }
 
 /* ============================== Nuvem (Supabase) ==============================
@@ -1133,10 +1144,11 @@ async function loadAdmin(){
   if(S.screen==='admin')renderMain();
 }
 function adminHead(){
-  return `<div class="ph"><button class="btn ghost" data-act="home">${ic('back')}Voltar</button><h1>Administração</h1><p>Usuários e catálogos usados nos formulários.</p></div><div class="seg adm-tabs" role="tablist" aria-label="Seções da administração" style="max-width:420px;margin-bottom:16px">${[['users','Usuários'],['catalog','Catálogos']].map(([k,t])=>`<button class="seg-b ${S.adminTab===k?'on':''}" role="tab" aria-selected="${S.adminTab===k}" data-act="adminTab" data-v="${k}" data-fk="adm-${k}">${t}</button>`).join('')}</div>`;
+  return `<div class="ph"><button class="btn ghost" data-act="home">${ic('back')}Voltar</button><h1>Administração</h1><p>Usuários e catálogos usados nos formulários.</p></div><div class="seg adm-tabs" role="tablist" aria-label="Seções da administração" style="max-width:620px;margin-bottom:16px">${[['users','Usuários'],['catalog','Catálogos'],['models','Modelos de válvula']].map(([k,t])=>`<button class="seg-b ${S.adminTab===k?'on':''}" role="tab" aria-selected="${S.adminTab===k}" data-act="adminTab" data-v="${k}" data-fk="adm-${k}">${t}</button>`).join('')}</div>`;
 }
 function vAdminCloud(){
   if(S.adminTab==='catalog')return adminHead()+vCatalogAdmin();
+  if(S.adminTab==='models')return adminHead()+vModelsAdmin();
   const a=S.admin||{};
   const opts=[['admin','Administrador'],['operador','Funcionário'],['pendente','Aguardando aprovação']];
   const novo=`<div class="panel"><h2>Novo usuário com e-mail</h2><p class="hint">A pessoa recebe um convite por e-mail e define a própria senha.</p><form data-submit="inviteUser"><div class="grid g4"><div class="field"><label for="nu-name">Nome</label><input id="nu-name" name="name" required minlength="2" autocomplete="off"><label class="switch name-caps"><input type="checkbox" name="caps" id="nu-caps" data-chg="nameCaps" checked><span class="track"></span><span>Nome em CAIXA ALTA</span></label></div><div class="field"><label for="nu-email">E-mail</label><input id="nu-email" name="email" type="email" required data-keep-case autocapitalize="off" autocomplete="off"></div><div class="field"><label for="nu-role">Perfil</label><select id="nu-role" name="role"><option value="operador">Funcionário</option><option value="admin">Administrador</option></select></div><div class="field"><label for="nu-mode">Como enviar o acesso</label><select id="nu-mode" name="mode"><option value="email">Enviar convite por e-mail</option><option value="link">Gerar link para eu enviar</option></select></div></div><button class="btn primary" type="submit">${ic('plus')}Cadastrar usuário</button></form></div>`;
@@ -1220,7 +1232,7 @@ function queuePhotoDelete(rec){
 const Sync={
   state:'idle',running:false,timer:null,iv:null,
   enabled(){return CLOUD&&!!S.user&&S.user.cloudRole&&S.user.cloudRole!=='pendente'&&S.user.status!=='bloqueado'&&S.screen!=='setpw'},
-  pendingCount(){return PROCS.filter(p=>p._dirty).length},
+  pendingCount(){return PROCS.filter(p=>p._dirty).length+(EXT.pending?EXT.pending():0)},
   conflicts(){return PROCS.filter(p=>p._conflict&&!p.deletedAt)},
   kick(ms=2500){if(!this.enabled())return;clearTimeout(this.timer);this.timer=setTimeout(()=>this.run(),ms)},
   start(){
@@ -1251,6 +1263,7 @@ const Sync={
       changed=(await this.push())||changed;
       changed=(await this.pull())||changed;
       try{changed=(await Catalog.refresh())||changed}catch(e){console.error('catálogo',e)}   // falha no catálogo não derruba a sincronização
+      for(const h of EXT.sync){try{changed=(await h())||changed}catch(e){console.error('módulo',e)}}
       changed=(await this.photosUp())||changed;
       changed=(await this.docsUp())||changed;
       changed=(await this.photosDown())||changed;
@@ -1382,6 +1395,7 @@ function refreshAfterSync(){
   const a=document.activeElement,typing=a&&/INPUT|TEXTAREA|SELECT/.test(a.tagName);
   if(S.screen==='home'){if(a&&a.id==='q'){$('#rows').innerHTML=rowsHTML(filtered(PROCS.filter(p=>!p.deletedAt)))}else renderMain()}
   else if(FLOW.includes(S.screen)&&!typing)renderMain();
+  else if(EXT.refresh)EXT.refresh(typing);
 }
 
 /* ============================== Ações (clique) ============================== */
@@ -1390,6 +1404,7 @@ const ACT={
   go(el){go(el.dataset.v)},
   home(){
     if(S.screen==='home'){window.scrollTo({top:0,behavior:RM()?'auto':'smooth'});return}
+    if(NAV_RTS.includes(S.screen))RtsSave.flush();
     S.sel=S.id||S.sel;S.screen='home';S.errs=null;S.id=null;Saver.flushAll();S.anim='up';render();scrollTo(0,0);
   },
   async logout(){
@@ -1426,7 +1441,7 @@ const ACT={
     finally{b.removeAttribute?.('aria-busy')}
   },
   /* administração: abas e catálogos */
-  adminTab(el){S.adminTab=el.dataset.v;renderMain();if(S.adminTab==='catalog'&&CLOUD)Catalog.refresh().then(ch=>{if(ch&&S.screen==='admin')renderMain()}).catch(()=>{})},
+  adminTab(el){S.adminTab=el.dataset.v;renderMain();if(S.adminTab==='models'&&CLOUD)Models.refresh().then(ch=>{if(ch&&S.screen==='admin')renderMain()}).catch(()=>{});if(S.adminTab==='catalog'&&CLOUD)Catalog.refresh().then(ch=>{if(ch&&S.screen==='admin')renderMain()}).catch(()=>{})},
   async catMove(el){
     const {t,id,parent}=el.dataset,d=+el.dataset.dir,list=catList(t,parent),i=list.findIndex(x=>x.id===id),k=i+d;
     if(i<0||k<0||k>=list.length)return;
@@ -1443,7 +1458,7 @@ const ACT={
   /* documentos em PDF */
   async docDownloadNow(el){
     const b=el.closest?.('button')||el;b.setAttribute?.('aria-busy','true');
-    try{const r=cur(),rec=await Docs.generate(r,'');saveBytes(rec.bytes,rec.fileName);toast('PDF gerado.')}catch(e){console.error(e);toast('Não foi possível gerar o PDF.')}
+    try{const r=cur(),rec=await Docs.generate(r,'');saveBytes(rec.bytes,rec.fileName);toast('PDF gerado.',{ms:9000,label:'Checklist de entrega',action:()=>ACT.checklistPdf()})}catch(e){console.error(e);toast('Não foi possível gerar o PDF.')}
     finally{b.removeAttribute?.('aria-busy')}
   },
   docGen(){
@@ -1647,9 +1662,10 @@ async function openProcess(id){
   try{await Photos.load(id)}catch(e){console.error(e)}
   render();scrollTo(0,0);
 }
-function newProcess(){
+function newProcess(modelId){
   const now=new Date().toISOString();
   const r=normalize({id:uid('REP'),createdAt:now,updatedAt:now,status:'Rascunho',process:'',pedido:'',ordem:'',equipamento:'',cliente:'',observacoes:'',vedacao:'',acionamento:'',fluido:'',createdBy:S.user.name,updatedBy:S.user.name});
+  const mdl=modelId&&window.Models&&Models.get(modelId);if(mdl)applyModel(r,mdl);   // válvula com projeto: componentes já entram na peritagem
   PROCS.unshift(r);Saver.queue(r.id);S.id=r.id;S.errs=null;S.screen='process';S.anim='up';render();scrollTo(0,0);
 }
 function pwDialog(forced){
@@ -1730,7 +1746,7 @@ const SUB={
     const btn=f.querySelector('button[type=submit]'),note=f.elements.note.value;btn.setAttribute('aria-busy','true');
     try{
       const r=cur(),rec=await Docs.generate(r,note);closeDialog(f.closest('dialog'));
-      toast(navigator.onLine?'Documento gerado. Enviando para a nuvem…':'Documento gerado. Será enviado quando a internet voltar.',{ms:4000});
+      toast(navigator.onLine?'Documento gerado. Enviando para a nuvem…':'Documento gerado. Será enviado quando a internet voltar.',{ms:9000,label:'Checklist de entrega',action:()=>ACT.checklistPdf()});
       renderMain();Sync.run();
     }catch(e){console.error(e);toast('Não foi possível gerar o PDF.')}
     finally{btn.removeAttribute('aria-busy')}
@@ -1852,6 +1868,7 @@ async function boot(){
     const keepTomb=p=>CLOUD&&(p._dirty||p._conflict);
     for(const p of raw.filter(p=>p.deletedAt&&!keepTomb(p))){await Store.del('processes',p.id).catch(()=>{});for(const ph of await Store.photosOf(p.id))await Store.del('photos',ph.id).catch(()=>{})}
     PROCS=raw.filter(p=>!p.deletedAt||keepTomb(p));
+    for(const h of (EXT.boot||[])){try{await h()}catch(e){console.error('módulo',e)}}   // módulos novos carregam seus dados locais (RTS)
     gc().catch(()=>{});
     let u=null;
     if(CLOUD){
@@ -1886,4 +1903,5 @@ if('serviceWorker' in navigator&&location.protocol!=='file:'){
   navigator.serviceWorker.register('./service-worker.js').catch(()=>{});
   navigator.serviceWorker.addEventListener('controllerchange',()=>{if(had)toast('Nova versão instalada.',{label:'Recarregar',action:()=>location.reload(),ms:12000})});
 }
+Object.assign(ACT,EXT.act);Object.assign(CHG,EXT.chg);Object.assign(SUB,EXT.sub);Object.assign(INP,EXT.inp);
 boot();
