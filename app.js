@@ -2,7 +2,7 @@
 /* MINC · Peritagem — v5.9.0
    Organização: utilitários → Store (IndexedDB) → Fotos → Auth → Regras (validação) → Telas → Ações/eventos → Boot */
 
-const APP_VERSION='5.14.0';
+const APP_VERSION='5.15.0';
 /* v5.11.0: módulos novos ficam em modelos.js (banco de modelos de válvula + checklist de entrega) e rts.js (Relatório Técnico de Serviço).
    Eles se registram em window.MINC_EXT (act/chg/sub/inp/views) e são mesclados aqui antes do boot(). */
 const EXT=window.MINC_EXT=window.MINC_EXT||{};
@@ -88,8 +88,8 @@ const Store={
   },
   _open(){return new Promise((ok,no)=>{
     if(!window.indexedDB)return no(new Error('no-idb'));
-    const r=indexedDB.open('minc_peritagem',3);
-    r.onupgradeneeded=()=>{const d=r.result,has=n=>d.objectStoreNames.contains(n);if(!has('processes'))d.createObjectStore('processes',{keyPath:'id'});if(!has('photos'))d.createObjectStore('photos',{keyPath:'id'}).createIndex('proc','procId');if(!has('docs'))d.createObjectStore('docs',{keyPath:'id'});if(!has('rts'))d.createObjectStore('rts',{keyPath:'id'})};   // docs: PDFs gerados aguardando envio à nuvem
+    const r=indexedDB.open('minc_peritagem',4);
+    r.onupgradeneeded=()=>{const d=r.result,has=n=>d.objectStoreNames.contains(n);if(!has('processes'))d.createObjectStore('processes',{keyPath:'id'});if(!has('photos'))d.createObjectStore('photos',{keyPath:'id'}).createIndex('proc','procId');if(!has('docs'))d.createObjectStore('docs',{keyPath:'id'});if(!has('rts'))d.createObjectStore('rts',{keyPath:'id'});if(!has('kv'))d.createObjectStore('kv',{keyPath:'k'})};   // kv: listas grandes do catálogo (matéria-prima)   // docs: PDFs gerados aguardando envio à nuvem
     r.onsuccess=()=>{this.db=r.result;this.db.onversionchange=()=>{this.db.close();this.db=null;toast('Este app foi atualizado em outra aba. Feche e abra esta aba de novo para continuar.',{ms:9000})};ok()};
     r.onerror=()=>no(r.error);r.onblocked=()=>no(new Error('blocked: outra aba está com o banco local aberto'));
   })},
@@ -358,7 +358,7 @@ function compIssues(c,no){
   if(!c.acoes.length)e.push(p+'escolha a providência');
   else if(c.acoes.length>1)e.push(p+'escolha só uma providência (item antigo com '+c.acoes.length+')');
   {let nmp=0,nsv=0;visLeaves(c).forEach(m=>{const sv=m.tipo==='serv',q=p+(sv?'Serviço '+(++nsv):'Matéria-prima '+(++nmp))+' — ';
-    if(emp(m.raw))e.push(q+(sv?'Serviço':'Matéria-prima'));if(!sv&&emp(m.material))e.push(q+'Material');if(emp(m.unit))e.push(q+'Unidade');if(!(num(m.qty)>0))e.push(q+'Quantidade')})}
+    if(emp(m.raw))e.push(q+(sv?'Serviço':'Matéria-prima'));if(!sv&&!m.materialId&&emp(m.material))e.push(q+'Material');if(emp(m.unit))e.push(q+'Unidade');if(!(num(m.qty)>0))e.push(q+'Quantidade')})}
   const acts=c.atividades.filter(a=>a.actId||!emp(a.t));
   // Fabricar/Substituir: as atividades são definidas pela Engenharia de Processos, então não são exigidas aqui
   if(!acts.length&&!precisaMat(c)&&!(serv&&c.servicos.length)&&!visLeaves(c).length)e.push(p+'adicione ao menos uma atividade ou serviço');
@@ -659,11 +659,11 @@ function vServ(c){
   const svs=Catalog.services(),bad=S.errs&&!c.servicos.length;
   return `<div class="subpanel${bad?' invalid-group':''}"><h3>Serviços externos</h3><p class="hint">Marque os serviços externos necessários para este item. Use "Outro" para um serviço que não está na lista.</p><div class="chips cat" role="group" aria-label="Serviços externos">${svs.map(x=>{const on=c.servicos.some(y=>sameServ(y,x));return `<button class="chip ${on?'on':''}" role="checkbox" aria-checked="${on}" data-act="toggleServ" data-cid="${c.id}" data-sv="${esc(x.id)}" data-fk="sv-${c.id}-${esc(x.id)}">${on?ic('check','ic sm'):ic('plus','ic sm')}${esc(x.name)}</button>`}).join('')}<button class="chip" data-act="addServOutro" data-cid="${c.id}" data-fk="sv-${c.id}-outro">${ic('plus','ic sm')}Outro serviço</button></div>${c.servicos.length?`<ul class="servs">${c.servicos.map((x,j)=>`<li class="serv"><div class="serv-m">${x.serviceId?`<b>${esc(x.nome)}</b>`:`<input id="sv-${x.id}" class="${S.errs&&emp(x.nome)?'invalid':''}" value="${esc(x.nome)}" data-inp="serv" data-k="nome" data-cid="${c.id}" data-sid="${x.id}" placeholder="Descreva o serviço (obrigatório)" aria-label="Serviço externo ${j+1}" autocomplete="off">`}<input value="${esc(x.obs)}" data-inp="serv" data-k="obs" data-cid="${c.id}" data-sid="${x.id}" placeholder="Observação (opcional)" aria-label="Observação do serviço ${j+1}" autocomplete="off"></div><button class="iconb" data-act="delServ" data-cid="${c.id}" data-sid="${x.id}" aria-label="Excluir serviço ${j+1}">${ic('trash')}</button></li>`).join('')}</ul>`:''}</div>`;
 }
-const leafBad=m=>emp(m.raw)||(m.tipo!=='serv'&&emp(m.material))||!(num(m.qty)>0);
+const leafBad=m=>emp(m.raw)||(m.tipo!=='serv'&&!m.materialId&&emp(m.material))||!(num(m.qty)>0);   // item da lista padrão já traz tudo na descrição
 function vMats(c){
   let nmp=0,nsv=0;const mp=precisaMat(c),vis=visLeaves(c),hid=hiddenMp(c);
   const list=c.materials.map((m,j)=>leafOn(c,m)?vMat(c,m,j,m.tipo==='serv'?++nsv:++nmp):'').join('');
-  return `<div class="subpanel${S.errs&&vis.some(leafBad)?' invalid-group':''}"><div class="ph-row"><div><h3>${mp?'Materiais e serviços':'Serviços'}</h3><p class="hint" style="margin:0">${mp?'Um componente pode ter várias matérias-primas e serviços.':'Matéria-prima só entra em Fabricar ou Substituir. Serviços valem para qualquer providência.'}</p></div><div class="actions">${mp?`<button class="btn primary" data-act="addMat" data-cid="${c.id}">${ic('plus')}Adicionar matéria-prima</button>`:''}<button class="btn${mp?'':' primary'}" data-act="svcPick" data-cid="${c.id}">${ic('plus')}Adicionar serviço</button></div></div>${list||`<p class="hint">${mp?'Nenhuma matéria-prima ou serviço cadastrado.':'Nenhum serviço cadastrado.'}</p>`}${hid?`<p class="hint">${plural(hid,'matéria-prima guardada','matérias-primas guardadas')} de quando o item era Fabricar ou Substituir. Não aparece no documento nem na lista de compras.</p>`:''}</div>`;
+  return `<div class="subpanel${S.errs&&vis.some(leafBad)?' invalid-group':''}"><div class="ph-row"><div><h3>${mp?'Materiais e serviços':'Serviços'}</h3><p class="hint" style="margin:0">${mp?'Um componente pode ter várias matérias-primas e serviços.':'Matéria-prima só entra em Fabricar ou Substituir. Serviços valem para qualquer providência.'}</p></div><div class="actions">${mp?`<button class="btn primary" data-act="matPick" data-cid="${c.id}">${ic('plus')}Adicionar matéria-prima</button>`:''}<button class="btn${mp?'':' primary'}" data-act="svcPick" data-cid="${c.id}">${ic('plus')}Adicionar serviço</button></div></div>${list||`<p class="hint">${mp?'Nenhuma matéria-prima ou serviço cadastrado.':'Nenhum serviço cadastrado.'}</p>`}${hid?`<p class="hint">${plural(hid,'matéria-prima guardada','matérias-primas guardadas')} de quando o item era Fabricar ou Substituir. Não aparece no documento nem na lista de compras.</p>`:''}</div>`;
 }
 /* uma folha da estrutura: matéria-prima (com material/norma e dimensão) ou serviço. ord = número dentro do próprio tipo */
 function vMat(c,m,j,ord){
@@ -674,8 +674,10 @@ function vMat(c,m,j,ord){
     ?`<div class="svc-fixed"><div><small class="muted">Serviço (lista padrão)</small><b>${esc(m.raw)}</b></div><span class="badge ${m.codigo?'st-gray':'st-amber'}">${m.codigo?'Cód. '+esc(m.codigo):'sem código'}</span></div>`
     :sv
     ?`<div class="grid g2"><div class="field"><label for="mr-${k}">Serviço</label><input id="mr-${k}" class="${inv(m.raw).trim()}" ${a} data-k="raw" value="${esc(m.raw)}" placeholder="Ex.: serviço de corte de chapa"></div>${cod}</div>`
+    :m.materialId
+    ?`<div class="svc-fixed"><div><small class="muted">Matéria-prima (lista padrão${m.grupo?' · '+esc(m.grupo):''})</small><b>${esc(m.raw)}</b>${m.codigo2?`<small class="muted">Informação complementar — cód. secundário: ${esc(m.codigo2)}</small>`:''}</div><span class="badge st-gray">Cód. ${esc(m.codigo)}</span></div>`
     :`<div class="grid g4"><div class="field"><label for="mr-${k}">Matéria-prima</label><input id="mr-${k}" class="${inv(m.raw).trim()}" ${a} data-k="raw" value="${esc(m.raw)}" placeholder="Ex.: chapa, barra redonda"></div><div class="field"><label for="mm-${k}">Material / norma</label><input id="mm-${k}" class="${inv(m.material).trim()}" ${a} data-k="material" value="${esc(m.material)}" placeholder="Ex.: SAE 1020, ASTM A-36"></div><div class="field"><label for="md-${k}">Dimensão <span class="muted">(opcional)</span></label><input id="md-${k}" ${a} data-k="dimensao" data-keep-case value="${esc(m.dimensao)}" placeholder="Ex.: Ø160 mm"></div>${cod}</div>`;
-  const qty=`<div class="grid g-mat2"><div class="field"><label for="mq-${k}">Quantidade</label><input id="mq-${k}" class="${S.errs&&!(num(m.qty)>0)?'invalid':''}" type="number" step="any" inputmode="decimal" ${a} data-k="qty" value="${esc(m.qty)}"></div><div class="field"><label for="mu-${k}">Unidade</label><select id="mu-${k}" data-chg="m" data-cid="${c.id}" data-j="${j}" data-k="unit">${UNITS.map(o=>`<option ${m.unit===o?'selected':''}>${o}</option>`).join('')}</select></div><div class="field wide"><label for="mo-${k}">Observação <span class="muted">(opcional)</span></label><input id="mo-${k}" ${a} data-k="obs" value="${esc(m.obs)}"></div></div>`;
+  const qty=`<div class="grid g-mat2"><div class="field"><label for="mq-${k}">Quantidade</label><input id="mq-${k}" class="${S.errs&&!(num(m.qty)>0)?'invalid':''}" type="number" step="any" inputmode="decimal" ${a} data-k="qty" value="${esc(m.qty)}"></div><div class="field"><label for="mu-${k}">Unidade</label><select id="mu-${k}" data-chg="m" data-cid="${c.id}" data-j="${j}" data-k="unit">${withLegacy(UNITS,m.unit).map(o=>`<option ${m.unit===o?'selected':''}>${esc(o)}</option>`).join('')}</select></div><div class="field wide"><label for="mo-${k}">Observação <span class="muted">(opcional)</span></label><input id="mo-${k}" ${a} data-k="obs" value="${esc(m.obs)}"></div></div>`;
   return `<div class="mat">${head}${first}${qty}${sv||emp(m.peso)?'':`<p class="hint" style="margin:0">Peso informado anteriormente: <b>${esc(m.peso)}</b>. Se ainda for necessário, informe na quantidade (unidade kg) ou na observação.</p>`}</div>`;
 }
 
@@ -711,7 +713,7 @@ function vPack(){
 const pf=(v,u)=>emp(v)?'—':esc(v)+(u?' '+esc(u):'');
 const pfs=(v,u)=>emp(v)?'':esc(v)+(u?' '+esc(u):'');
 function matLine(m){
-  return [m.tipo==='serv'?'Serviço: '+esc(m.raw):esc(m.raw),esc(m.material),esc(m.dimensao),esc(codeOf(m)),emp(m.qty)?'':esc(m.qty)+' '+esc(m.unit)].filter(Boolean).join(' | ');
+  return [m.tipo==='serv'?'Serviço: '+esc(m.raw):esc(m.raw),esc(m.material),esc(m.dimensao),esc(codeOf(m)),m.codigo2?esc('cód. sec.: '+m.codigo2):'',emp(m.qty)?'':esc(m.qty)+' '+esc(m.unit)].filter(Boolean).join(' | ');
 }
 const rpPhoto=p=>Photos.url(p.id)?`<img class="report-photo" src="${Photos.url(p.id)}" alt="">`:`<span class="report-photo rp-miss">Foto não baixada</span>`;
 function rpItem({no,nome,prov,desenho,photos=[],lines=[],mats=[],matsT='Materiais a comprar',obs='',semProv=false}){
@@ -793,7 +795,7 @@ function structStats(r){let mp=0,sv=0;r.components.forEach(c=>visLeaves(c).forEa
 /* lista de compras: matérias-primas (só Fabricar/Substituir) e serviços (qualquer providência) */
 function matRows(r){
   const rows=[];
-  treeList(r).forEach(({c,no})=>{visLeaves(c).forEach(m=>rows.push({no,comp:c.name,prov:c.acoes.join(' / '),tipo:leafKind(m),raw:m.raw,material:m.tipo==='serv'?'':m.material,dimensao:m.tipo==='serv'?'':m.dimensao,codigo:codeOf(m),unit:m.unit,qty:m.qty,drawing:c.noDrawing?'Sem desenho':c.drawing,obs:m.obs}))});
+  treeList(r).forEach(({c,no})=>{visLeaves(c).forEach(m=>rows.push({no,comp:c.name,prov:c.acoes.join(' / '),tipo:leafKind(m),raw:m.raw,material:m.tipo==='serv'?'':m.material,dimensao:m.tipo==='serv'?'':m.dimensao,codigo:codeOf(m),unit:m.unit,qty:m.qty,drawing:c.noDrawing?'Sem desenho':c.drawing,obs:[m.obs,m.codigo2?'Cód. secundário: '+m.codigo2:''].filter(Boolean).join(' | ')}))});
   return rows;   // já na ordem do documento (1, 1.1, 1.2, 2…)
 }
 /* a árvore inteira, achatada em linhas (usada na exportação): componente, depois suas folhas, depois seus subcomponentes */
@@ -802,7 +804,7 @@ function structRows(r){
   const rec=(id,lvl,pai)=>kidsOf(r,id).forEach(c=>{
     const no=compNo(r,c);
     rows.push({lvl,no,tipo:'Componente',codigo:codeOf(c),sem:c.semCadastro,desc:c.name,material:'',dimensao:'',unit:c.unid,qty:c.qtd,prov:c.acoes.join(' / '),drawing:c.noDrawing?'Sem desenho':c.drawing,pai,obs:c.obs});
-    visLeaves(c).forEach(m=>rows.push({lvl:lvl+1,no:'',tipo:leafKind(m),codigo:codeOf(m),sem:m.semCadastro,desc:m.raw,material:m.tipo==='serv'?'':m.material,dimensao:m.tipo==='serv'?'':m.dimensao,unit:m.unit,qty:m.qty,prov:'',drawing:'',pai:lab(c,no),obs:m.obs}));
+    visLeaves(c).forEach(m=>rows.push({lvl:lvl+1,no:'',tipo:leafKind(m),codigo:codeOf(m),sem:m.semCadastro,desc:m.raw,material:m.tipo==='serv'?'':m.material,dimensao:m.tipo==='serv'?'':m.dimensao,unit:m.unit,qty:m.qty,prov:'',drawing:'',pai:lab(c,no),obs:[m.obs,m.codigo2?'Cód. secundário: '+m.codigo2:''].filter(Boolean).join(' | ')}));
     rec(c.id,lvl+1,lab(c,no));
   });
   rec(null,0,'');return rows;
@@ -824,7 +826,7 @@ function vNode(r,c,lvl){
 <div class="field"><label for="sq-${id}">Qtd.</label><input id="sq-${id}" type="number" step="any" inputmode="decimal" value="${esc(c.qtd)}" data-inp="c" data-cid="${id}" data-k="qtd"></div></div>
 ${nodeStatus(c,no)}</div>
 <div class="tn-bar"><div class="chips tn-prov" role="radiogroup" aria-label="Providência do item ${no}">${PROV.map(k=>chip(k,false)).join('')}${c.acoes.filter(a=>!PROV.includes(a)).map(k=>chip(k,true)).join('')}</div>
-<div class="tn-acts"><button type="button" class="btn sm" data-act="addNode" data-pid="${id}">${ic('plus')}Subcomponente</button>${precisaMat(c)?`<button type="button" class="btn sm" data-act="addLeaf" data-t="mp" data-cid="${id}">${ic('plus')}Matéria-prima</button>`:''}<button type="button" class="btn sm" data-act="svcPick" data-cid="${id}">${ic('plus')}Serviço</button></div></div>
+<div class="tn-acts"><button type="button" class="btn sm" data-act="addNode" data-pid="${id}">${ic('plus')}Subcomponente</button>${precisaMat(c)?`<button type="button" class="btn sm" data-act="matPick" data-cid="${id}">${ic('plus')}Matéria-prima</button>`:''}<button type="button" class="btn sm" data-act="svcPick" data-cid="${id}">${ic('plus')}Serviço</button></div></div>
 <details class="tn-more"><summary>Mais opções</summary><div class="tn-more-b"><div class="field"><label for="sp-${id}">Subcomponente de</label><select id="sp-${id}" data-chg="cpar" data-cid="${id}"><option value="">Nível principal</option>${opts}</select></div><div class="actions"><button type="button" class="btn" data-act="openComp" data-cid="${id}">Abrir no componente (atividades e fotos)</button><button type="button" class="btn danger" data-act="delComp" data-cid="${id}">${ic('trash')}Excluir</button></div></div></details>
 </div></div>${open?leaves:''}`;
 }
@@ -1445,7 +1447,7 @@ const ACT={
     finally{b.removeAttribute?.('aria-busy')}
   },
   /* administração: abas e catálogos */
-  adminTab(el){S.adminTab=el.dataset.v;renderMain();if(S.adminTab==='settings'&&CLOUD){Settings.refresh().then(ch=>{if(ch&&S.screen==='admin')renderMain()}).catch(()=>{});Catalog.refresh().then(ch=>{if(ch&&S.screen==='admin')renderMain()}).catch(()=>{})}if(S.adminTab==='models'&&CLOUD)Models.refresh().then(ch=>{if(ch&&S.screen==='admin')renderMain()}).catch(()=>{});if(S.adminTab==='catalog'&&CLOUD)Catalog.refresh().then(ch=>{if(ch&&S.screen==='admin')renderMain()}).catch(()=>{})},
+  adminTab(el){S.adminTab=el.dataset.v;renderMain();if(S.adminTab==='settings'&&CLOUD){if(window.Mats)Mats.refresh().then(ch=>{if(ch&&S.screen==='admin')renderMain()}).catch(()=>{});Settings.refresh().then(ch=>{if(ch&&S.screen==='admin')renderMain()}).catch(()=>{});Catalog.refresh().then(ch=>{if(ch&&S.screen==='admin')renderMain()}).catch(()=>{})}if(S.adminTab==='models'&&CLOUD)Models.refresh().then(ch=>{if(ch&&S.screen==='admin')renderMain()}).catch(()=>{});if(S.adminTab==='catalog'&&CLOUD)Catalog.refresh().then(ch=>{if(ch&&S.screen==='admin')renderMain()}).catch(()=>{})},
   async catMove(el){
     const {t,id,parent}=el.dataset,d=+el.dataset.dir,list=catList(t,parent),i=list.findIndex(x=>x.id===id),k=i+d;
     if(i<0||k<0||k>=list.length)return;

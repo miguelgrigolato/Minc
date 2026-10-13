@@ -107,4 +107,15 @@
 .svc-fixed div{display:flex;flex-direction:column;gap:2px}
 dialog.svc-dialog{max-width:640px;width:calc(100% - 24px)}
 @media(max-width:720px){.svc-add{grid-template-columns:1fr}.svc-row{grid-template-columns:1fr auto auto}.svc-row .svc-cod{grid-column:1/-1}}
+/* lista de matéria-prima (Nomus) */
+.mat-add{display:grid;grid-template-columns:minmax(150px,200px) minmax(0,1fr) minmax(110px,150px) 90px minmax(120px,160px) auto;gap:10px;align-items:end;margin-top:14px}
+.mat-add .field{margin-bottom:0}
+.mat-adm-list{display:flex;flex-direction:column;gap:8px;max-height:640px;overflow:auto;padding-right:4px}
+.mat-adm{display:grid;grid-template-columns:minmax(150px,210px) minmax(0,1fr) 84px minmax(100px,140px) auto auto;grid-template-areas:"cod des un gr act del" "c2 c2 c2 c2 c2 c2";gap:6px 8px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line)}
+.mat-adm .ma-cod{grid-area:cod}.mat-adm .ma-des{grid-area:des}.mat-adm .ma-un{grid-area:un}.mat-adm .ma-gr{grid-area:gr}.mat-adm .ma-c2{grid-area:c2;max-width:340px;font-size:14px}
+.mat-adm .switch{grid-area:act}.mat-adm .iconb{grid-area:del}
+.mat-adm.off .ma-des{text-decoration:line-through;color:var(--muted)}
+.imp-w{margin-top:8px;padding:8px 10px;border:1px solid var(--line);border-radius:4px;background:var(--surface);font-size:13px}
+.imp-w summary{cursor:pointer;font-weight:600}
+@media(max-width:960px){.mat-add{grid-template-columns:1fr 1fr}.mat-add .ma-add-d{grid-column:1/-1}.mat-adm{grid-template-columns:1fr 1fr auto auto;grid-template-areas:"cod cod cod cod" "des des des des" "un gr act del" "c2 c2 c2 c2"}}
 @media print{.topnav{display:none}}
