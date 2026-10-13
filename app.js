@@ -2,7 +2,7 @@
 /* MINC · Peritagem — v5.9.0
    Organização: utilitários → Store (IndexedDB) → Fotos → Auth → Regras (validação) → Telas → Ações/eventos → Boot */
 
-const APP_VERSION='5.13.0';
+const APP_VERSION='5.14.0';
 /* v5.11.0: módulos novos ficam em modelos.js (banco de modelos de válvula + checklist de entrega) e rts.js (Relatório Técnico de Serviço).
    Eles se registram em window.MINC_EXT (act/chg/sub/inp/views) e são mesclados aqui antes do boot(). */
 const EXT=window.MINC_EXT=window.MINC_EXT||{};
@@ -317,7 +317,7 @@ const byPos=(a,b)=>(a.position-b.position)||String(a.name).localeCompare(String(
 function catDefault(){
   return{src:'default',at:null,
     sectors:(CATALOGO.SETORES_PADRAO||[]).map((x,i)=>({id:'seed-s'+i,name:x.name,position:i+1,active:true,activities:(x.atividades||[]).map((a,j)=>({id:`seed-a${i}-${j}`,name:a.name,position:j+1,requiresDetail:!!a.requiresDetail,active:true}))})),
-    services:(CATALOGO.SERVICOS_EXTERNOS_PADRAO||[]).map((n,i)=>({id:'seed-v'+i,name:n,position:i+1,active:true}))};
+    services:(CATALOGO.SERVICOS_EXTERNOS_PADRAO||[]).map((x,i)=>({id:'seed-v'+i,name:typeof x==='string'?x:x.name,codigo:typeof x==='string'?'':(x.codigo||''),position:i+1,active:true}))};
 }
 let CATALOG=catDefault();
 const Catalog={
@@ -327,7 +327,7 @@ const Catalog={
     const [a,b,v]=await Promise.all([SB.from('catalog_sectors').select('*').order('position'),SB.from('catalog_activities').select('*').order('position'),SB.from('catalog_external_services').select('*').order('position')]);
     for(const r of [a,b,v])if(r.error)throw r.error;
     const sectors=a.data.map(x=>({id:x.id,name:x.name,position:x.position,active:x.active,activities:b.data.filter(y=>y.sector_id===x.id).map(y=>({id:y.id,name:y.name,position:y.position,requiresDetail:!!y.requires_detail,active:y.active}))}));
-    const services=v.data.map(x=>({id:x.id,name:x.name,position:x.position,active:x.active}));
+    const services=v.data.map(x=>({id:x.id,name:x.name,codigo:x.codigo||'',position:x.position,active:x.active}));
     const before=JSON.stringify([CATALOG.sectors,CATALOG.services]);
     CATALOG={src:'cloud',at:new Date().toISOString(),sectors,services};
     try{localStorage.setItem(CAT_KEY,JSON.stringify(CATALOG))}catch{}
@@ -663,14 +663,16 @@ const leafBad=m=>emp(m.raw)||(m.tipo!=='serv'&&emp(m.material))||!(num(m.qty)>0)
 function vMats(c){
   let nmp=0,nsv=0;const mp=precisaMat(c),vis=visLeaves(c),hid=hiddenMp(c);
   const list=c.materials.map((m,j)=>leafOn(c,m)?vMat(c,m,j,m.tipo==='serv'?++nsv:++nmp):'').join('');
-  return `<div class="subpanel${S.errs&&vis.some(leafBad)?' invalid-group':''}"><div class="ph-row"><div><h3>${mp?'Materiais e serviços':'Serviços'}</h3><p class="hint" style="margin:0">${mp?'Um componente pode ter várias matérias-primas e serviços.':'Matéria-prima só entra em Fabricar ou Substituir. Serviços valem para qualquer providência.'}</p></div><div class="actions">${mp?`<button class="btn primary" data-act="addMat" data-cid="${c.id}">${ic('plus')}Adicionar matéria-prima</button>`:''}<button class="btn${mp?'':' primary'}" data-act="addLeaf" data-t="serv" data-cid="${c.id}">${ic('plus')}Adicionar serviço</button></div></div>${list||`<p class="hint">${mp?'Nenhuma matéria-prima ou serviço cadastrado.':'Nenhum serviço cadastrado.'}</p>`}${hid?`<p class="hint">${plural(hid,'matéria-prima guardada','matérias-primas guardadas')} de quando o item era Fabricar ou Substituir. Não aparece no documento nem na lista de compras.</p>`:''}</div>`;
+  return `<div class="subpanel${S.errs&&vis.some(leafBad)?' invalid-group':''}"><div class="ph-row"><div><h3>${mp?'Materiais e serviços':'Serviços'}</h3><p class="hint" style="margin:0">${mp?'Um componente pode ter várias matérias-primas e serviços.':'Matéria-prima só entra em Fabricar ou Substituir. Serviços valem para qualquer providência.'}</p></div><div class="actions">${mp?`<button class="btn primary" data-act="addMat" data-cid="${c.id}">${ic('plus')}Adicionar matéria-prima</button>`:''}<button class="btn${mp?'':' primary'}" data-act="svcPick" data-cid="${c.id}">${ic('plus')}Adicionar serviço</button></div></div>${list||`<p class="hint">${mp?'Nenhuma matéria-prima ou serviço cadastrado.':'Nenhum serviço cadastrado.'}</p>`}${hid?`<p class="hint">${plural(hid,'matéria-prima guardada','matérias-primas guardadas')} de quando o item era Fabricar ou Substituir. Não aparece no documento nem na lista de compras.</p>`:''}</div>`;
 }
 /* uma folha da estrutura: matéria-prima (com material/norma e dimensão) ou serviço. ord = número dentro do próprio tipo */
 function vMat(c,m,j,ord){
   const k=`${c.id}-${j}`,a=`data-inp="m" data-cid="${c.id}" data-j="${j}"`,sv=m.tipo==='serv',nome=leafKind(m);
   const cod=`<div class="field"><label for="mc-${k}">Código <span class="muted">(opcional)</span></label><input id="mc-${k}" ${a} data-k="codigo" value="${esc(m.codigo)}" ${m.semCadastro?'disabled placeholder="Sem cadastro"':''}>${sw('mchk',c.id,'semCadastro',m.semCadastro,'Não tem cadastro',`data-j="${j}"`)}</div>`;
   const head=`<div class="mat-h"><b>${nome} ${ord}</b><button class="btn danger" data-act="delMat" data-cid="${c.id}" data-j="${j}" aria-label="Excluir ${nome.toLowerCase()} ${ord}">${ic('trash')}Excluir</button></div>`;
-  const first=sv
+  const first=sv&&m.serviceId
+    ?`<div class="svc-fixed"><div><small class="muted">Serviço (lista padrão)</small><b>${esc(m.raw)}</b></div><span class="badge ${m.codigo?'st-gray':'st-amber'}">${m.codigo?'Cód. '+esc(m.codigo):'sem código'}</span></div>`
+    :sv
     ?`<div class="grid g2"><div class="field"><label for="mr-${k}">Serviço</label><input id="mr-${k}" class="${inv(m.raw).trim()}" ${a} data-k="raw" value="${esc(m.raw)}" placeholder="Ex.: serviço de corte de chapa"></div>${cod}</div>`
     :`<div class="grid g4"><div class="field"><label for="mr-${k}">Matéria-prima</label><input id="mr-${k}" class="${inv(m.raw).trim()}" ${a} data-k="raw" value="${esc(m.raw)}" placeholder="Ex.: chapa, barra redonda"></div><div class="field"><label for="mm-${k}">Material / norma</label><input id="mm-${k}" class="${inv(m.material).trim()}" ${a} data-k="material" value="${esc(m.material)}" placeholder="Ex.: SAE 1020, ASTM A-36"></div><div class="field"><label for="md-${k}">Dimensão <span class="muted">(opcional)</span></label><input id="md-${k}" ${a} data-k="dimensao" data-keep-case value="${esc(m.dimensao)}" placeholder="Ex.: Ø160 mm"></div>${cod}</div>`;
   const qty=`<div class="grid g-mat2"><div class="field"><label for="mq-${k}">Quantidade</label><input id="mq-${k}" class="${S.errs&&!(num(m.qty)>0)?'invalid':''}" type="number" step="any" inputmode="decimal" ${a} data-k="qty" value="${esc(m.qty)}"></div><div class="field"><label for="mu-${k}">Unidade</label><select id="mu-${k}" data-chg="m" data-cid="${c.id}" data-j="${j}" data-k="unit">${UNITS.map(o=>`<option ${m.unit===o?'selected':''}>${o}</option>`).join('')}</select></div><div class="field wide"><label for="mo-${k}">Observação <span class="muted">(opcional)</span></label><input id="mo-${k}" ${a} data-k="obs" value="${esc(m.obs)}"></div></div>`;
@@ -822,7 +824,7 @@ function vNode(r,c,lvl){
 <div class="field"><label for="sq-${id}">Qtd.</label><input id="sq-${id}" type="number" step="any" inputmode="decimal" value="${esc(c.qtd)}" data-inp="c" data-cid="${id}" data-k="qtd"></div></div>
 ${nodeStatus(c,no)}</div>
 <div class="tn-bar"><div class="chips tn-prov" role="radiogroup" aria-label="Providência do item ${no}">${PROV.map(k=>chip(k,false)).join('')}${c.acoes.filter(a=>!PROV.includes(a)).map(k=>chip(k,true)).join('')}</div>
-<div class="tn-acts"><button type="button" class="btn sm" data-act="addNode" data-pid="${id}">${ic('plus')}Subcomponente</button>${precisaMat(c)?`<button type="button" class="btn sm" data-act="addLeaf" data-t="mp" data-cid="${id}">${ic('plus')}Matéria-prima</button>`:''}<button type="button" class="btn sm" data-act="addLeaf" data-t="serv" data-cid="${id}">${ic('plus')}Serviço</button></div></div>
+<div class="tn-acts"><button type="button" class="btn sm" data-act="addNode" data-pid="${id}">${ic('plus')}Subcomponente</button>${precisaMat(c)?`<button type="button" class="btn sm" data-act="addLeaf" data-t="mp" data-cid="${id}">${ic('plus')}Matéria-prima</button>`:''}<button type="button" class="btn sm" data-act="svcPick" data-cid="${id}">${ic('plus')}Serviço</button></div></div>
 <details class="tn-more"><summary>Mais opções</summary><div class="tn-more-b"><div class="field"><label for="sp-${id}">Subcomponente de</label><select id="sp-${id}" data-chg="cpar" data-cid="${id}"><option value="">Nível principal</option>${opts}</select></div><div class="actions"><button type="button" class="btn" data-act="openComp" data-cid="${id}">Abrir no componente (atividades e fotos)</button><button type="button" class="btn danger" data-act="delComp" data-cid="${id}">${ic('trash')}Excluir</button></div></div></details>
 </div></div>${open?leaves:''}`;
 }
@@ -1184,7 +1186,7 @@ function catAddBox(t,parent,label,id){
 function vCatalogAdmin(){
   const secs=[...CATALOG.sectors].sort(byPos);
   const note=CATALOG.src==='cloud'?'':'<p class="errbox" style="margin-bottom:12px">Mostrando o catálogo padrão deste aparelho. Entre com internet para carregar e editar o catálogo da nuvem.</p>';
-  return `${note}<div class="panel"><h2>Setores e atividades</h2><p class="hint">Cada atividade pertence a um setor. Itens desativados deixam de aparecer para escolha, mas continuam nos documentos já feitos. Marque “Exige detalhe” quando a linha precisar de texto complementar.</p>${secs.map(sec=>`<section class="cat-sec ${sec.active?'':'off'}" aria-label="Setor ${esc(sec.name)}"><h3>Setor</h3>${catRow('sector',sec,'')}<div class="cat-acts"><h4>Atividades de ${esc(sec.name)}</h4>${[...sec.activities].sort(byPos).map(a=>catRow('activity',a,sec.id,`<label class="switch"><input type="checkbox" data-chg="catReq" data-id="${a.id}" ${a.requiresDetail?'checked':''}><span class="track"></span><span>Exige detalhe</span></label>`)).join('')||'<p class="hint">Nenhuma atividade.</p>'}${catAddBox('activity',sec.id,'Nova atividade em '+sec.name,'cadd-a-'+sec.id)}</div></section>`).join('')}${catAddBox('sector','','Novo setor','cadd-sector')}</div><div class="panel"><h2>Serviços externos</h2><p class="hint">Opções que aparecem quando o item tem a providência “Serviço externo”.</p>${[...CATALOG.services].sort(byPos).map(x=>catRow('service',x,'')).join('')||'<p class="hint">Nenhum serviço cadastrado.</p>'}${catAddBox('service','','Novo serviço externo','cadd-service')}</div>`;
+  return `${note}<div class="panel"><h2>Setores e atividades</h2><p class="hint">Cada atividade pertence a um setor. Itens desativados deixam de aparecer para escolha, mas continuam nos documentos já feitos. Marque “Exige detalhe” quando a linha precisar de texto complementar.</p>${secs.map(sec=>`<section class="cat-sec ${sec.active?'':'off'}" aria-label="Setor ${esc(sec.name)}"><h3>Setor</h3>${catRow('sector',sec,'')}<div class="cat-acts"><h4>Atividades de ${esc(sec.name)}</h4>${[...sec.activities].sort(byPos).map(a=>catRow('activity',a,sec.id,`<label class="switch"><input type="checkbox" data-chg="catReq" data-id="${a.id}" ${a.requiresDetail?'checked':''}><span class="track"></span><span>Exige detalhe</span></label>`)).join('')||'<p class="hint">Nenhuma atividade.</p>'}${catAddBox('activity',sec.id,'Nova atividade em '+sec.name,'cadd-a-'+sec.id)}</div></section>`).join('')}${catAddBox('sector','','Novo setor','cadd-sector')}</div><div class="panel"><h2>Serviços</h2><p class="hint">A lista de serviços (com o código do Nomus) agora fica em <b>Administração &gt; Configurações</b>.</p><button class="btn" data-act="adminTab" data-v="settings">Abrir Configurações</button></div>`;
 }
 async function catWrite(fn){
   if(!navigator.onLine){toast('Sem conexão: o catálogo só pode ser editado online.');renderMain();return false}
@@ -1443,7 +1445,7 @@ const ACT={
     finally{b.removeAttribute?.('aria-busy')}
   },
   /* administração: abas e catálogos */
-  adminTab(el){S.adminTab=el.dataset.v;renderMain();if(S.adminTab==='settings'&&CLOUD)Settings.refresh().then(ch=>{if(ch&&S.screen==='admin')renderMain()}).catch(()=>{});if(S.adminTab==='models'&&CLOUD)Models.refresh().then(ch=>{if(ch&&S.screen==='admin')renderMain()}).catch(()=>{});if(S.adminTab==='catalog'&&CLOUD)Catalog.refresh().then(ch=>{if(ch&&S.screen==='admin')renderMain()}).catch(()=>{})},
+  adminTab(el){S.adminTab=el.dataset.v;renderMain();if(S.adminTab==='settings'&&CLOUD){Settings.refresh().then(ch=>{if(ch&&S.screen==='admin')renderMain()}).catch(()=>{});Catalog.refresh().then(ch=>{if(ch&&S.screen==='admin')renderMain()}).catch(()=>{})}if(S.adminTab==='models'&&CLOUD)Models.refresh().then(ch=>{if(ch&&S.screen==='admin')renderMain()}).catch(()=>{});if(S.adminTab==='catalog'&&CLOUD)Catalog.refresh().then(ch=>{if(ch&&S.screen==='admin')renderMain()}).catch(()=>{})},
   async catMove(el){
     const {t,id,parent}=el.dataset,d=+el.dataset.dir,list=catList(t,parent),i=list.findIndex(x=>x.id===id),k=i+d;
     if(i<0||k<0||k>=list.length)return;

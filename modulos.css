@@ -89,4 +89,22 @@
 .set-row{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px;border:1px solid var(--line);border-radius:4px;flex-wrap:wrap}
 .set-i{display:flex;flex-direction:column;gap:4px;flex:1;min-width:240px}
 .set-i small{color:var(--muted)}
+/* lista padronizada de serviços (Nomus) */
+.svc-add{display:grid;grid-template-columns:minmax(160px,220px) minmax(0,1fr) auto;gap:10px;align-items:end;margin-top:14px}
+.svc-add .field{margin-bottom:0}
+.svc-list{display:flex;flex-direction:column;gap:6px;max-height:560px;overflow:auto;padding-right:4px}
+.svc-row{display:grid;grid-template-columns:minmax(120px,200px) minmax(0,1fr) auto auto;gap:8px;align-items:center}
+.svc-row[hidden],.svc-pick[hidden]{display:none}
+.svc-row.off .svc-nome{text-decoration:line-through;color:var(--muted)}
+.svc-picks{display:flex;flex-direction:column;gap:6px;max-height:50vh;overflow:auto;margin-top:8px}
+.svc-pick{display:flex;align-items:center;gap:12px;min-height:52px;padding:8px 12px;border:1.5px solid var(--line-strong);border-radius:4px;cursor:pointer}
+.svc-pick.on{background:var(--surface);opacity:.7;cursor:default}
+.svc-pick:has(input:checked:not(:disabled)){border-color:var(--ink);background:var(--surface)}
+.svc-pick input{width:22px;height:22px;flex:none}
+.svc-pn{display:flex;flex-direction:column;gap:2px;min-width:0}
+.svc-pn small{color:var(--muted)}
+.svc-fixed{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px;padding:10px 12px;border:1px solid var(--line);border-radius:4px;background:var(--surface)}
+.svc-fixed div{display:flex;flex-direction:column;gap:2px}
+dialog.svc-dialog{max-width:640px;width:calc(100% - 24px)}
+@media(max-width:720px){.svc-add{grid-template-columns:1fr}.svc-row{grid-template-columns:1fr auto auto}.svc-row .svc-cod{grid-column:1/-1}}
 @media print{.topnav{display:none}}

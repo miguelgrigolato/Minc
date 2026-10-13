@@ -1,4 +1,4 @@
-# Minc — Peritagem (v5.13.0)
+# Minc — Peritagem (v5.14.0)
 
 App web (PWA) de peritagem e recuperação de equipamentos da Indústrias Minc. Sem build: arquivos estáticos
 (`index.html`, `app.js`, ...). Dados no Supabase (projeto `minc-peritagem`) com cópia local no aparelho.
@@ -10,6 +10,11 @@ App web (PWA) de peritagem e recuperação de equipamentos da Indústrias Minc. 
   desmontagem entrega à fábrica. O código do formulário fica em `catalogo.js` > `CHECKLIST.codigo` (ainda vazio).
 - **RTS (Relatório Técnico de Serviço)** — aba "RTS" no topo (`rts.js`), independente da peritagem. POS com providência,
   atividades padrão (`catalogo.js` > `RTS_BIBLIOTECA`), lista de materiais e PDF no layout R-MINC-060-RTS-PT.
+
+## v5.14.0 — Serviços padronizados (código do Nomus)
+- Administração > Configurações > **Lista de serviços**: só o administrador adiciona, edita, desativa, exclui, importa (colar do Excel) e exporta (CSV).
+- Em Componentes e Estrutura, "Adicionar serviço" abre a lista para **marcar** os serviços; nome e código entram prontos. A caixa de texto é só busca;
+  não existe "serviço fora da lista". Migração: `supabase/migrations/20261014_servicos_com_codigo_nomus.sql` (aplicada).
 
 ## v5.13.0 — Configurações
 - Administração > **Configurações**: o administrador liga/desliga módulos para todos os usuários (`ajustes.js`, tabela `app_settings`).

@@ -34,8 +34,16 @@ window.MINC_CATALOGO = {
     { name: 'Qualidade', atividades: [ { name: 'Realizar Ensaio de LP' } ] }
   ],
 
-  /* Serviços externos padrão (exemplos dados pela engenharia). Também editáveis em Administração > Catálogos. */
-  SERVICOS_EXTERNOS_PADRAO: ['Serviço de Tratamento Térmico', 'Serviço de Recuperação'],
+  /* Serviços padrão com código do Nomus (cópia usada sem nuvem e antes do aparelho baixar a lista). Com a nuvem, o administrador
+     edita a lista em Administração > Configurações. */
+  SERVICOS_EXTERNOS_PADRAO: [
+    { codigo: '09.1.0011', name: 'SERVIÇO DE TRATAMENTO DE SUPERFÍCIE' },
+    { codigo: '09.1.0002', name: 'SERVIÇO DE TRATAMENTO TÉRMICO' },
+    { codigo: '09.19.069', name: 'SERVIÇO DE BRUNIMENTO' },
+    { codigo: '09.1.0004', name: 'SERVIÇO DE REVESTIMENTO' },
+    { codigo: '09.1.0009', name: 'SERVIÇO DE CALANDRAGEM DE CHAPA' },
+    { codigo: '09.1.0003', name: 'SERVIÇO DE CORTE DE CHAPA' }
+  ],
 
   /* Itens que se repetem nos documentos (atalho "Itens comuns" na aba Componentes) */
   ITENS_COMUNS: ['Montagem final', 'Pintura', 'Elementos de fixação', 'Elementos de vedação', 'Sistema de lubrificação'],
