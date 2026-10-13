@@ -2,7 +2,7 @@
 /* MINC · Peritagem — v5.9.0
    Organização: utilitários → Store (IndexedDB) → Fotos → Auth → Regras (validação) → Telas → Ações/eventos → Boot */
 
-const APP_VERSION='5.11.0';
+const APP_VERSION='5.12.0';
 /* v5.11.0: módulos novos ficam em modelos.js (banco de modelos de válvula + checklist de entrega) e rts.js (Relatório Técnico de Serviço).
    Eles se registram em window.MINC_EXT (act/chg/sub/inp/views) e são mesclados aqui antes do boot(). */
 const EXT=window.MINC_EXT=window.MINC_EXT||{};
@@ -1852,6 +1852,7 @@ async function migrateLegacy(){
 }
 async function gc(){
   const keep=new Set();PROCS.forEach(p=>{[...p.equipmentPhotos,...p.anexos].forEach(x=>keep.add(x.id));p.components.forEach(c=>[...c.photos,...c.anexos].forEach(x=>keep.add(x.id)))});
+  try{(EXT.keepPhotos?EXT.keepPhotos():[]).forEach(id=>keep.add(id))}catch{}   // imagens dos anexos do RTS
   for(const k of await Store.photoKeys())if(!keep.has(k))await Store.del('photos',k).catch(()=>{});
 }
 async function boot(){

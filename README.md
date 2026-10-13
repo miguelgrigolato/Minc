@@ -1,4 +1,4 @@
-# Minc — Peritagem (v5.11.0)
+# Minc — Peritagem (v5.12.0)
 
 App web (PWA) de peritagem e recuperação de equipamentos da Indústrias Minc. Sem build: arquivos estáticos
 (`index.html`, `app.js`, ...). Dados no Supabase (projeto `minc-peritagem`) com cópia local no aparelho.
@@ -10,6 +10,14 @@ App web (PWA) de peritagem e recuperação de equipamentos da Indústrias Minc. 
   desmontagem entrega à fábrica. O código do formulário fica em `catalogo.js` > `CHECKLIST.codigo` (ainda vazio).
 - **RTS (Relatório Técnico de Serviço)** — aba "RTS" no topo (`rts.js`), independente da peritagem. POS com providência,
   atividades padrão (`catalogo.js` > `RTS_BIBLIOTECA`), lista de materiais e PDF no layout R-MINC-060-RTS-PT.
+
+## v5.12.0 — RTS a partir dos RTS reais (1135, 1168, 1188)
+- **Aprovação dentro do app**: Rascunho → Aguardando aprovação → Aprovado. Só o administrador aprova ou devolve (com motivo);
+  o RTS fica travado fora do rascunho; o PDF só sai com "Aprovado por" depois da aprovação (antes, marca d'água).
+- Observações técnicas, seções extras (ex.: Delineamento Contratual) e anexos (imagens, desenhos, lista de materiais) são listas livres,
+  com biblioteca em `catalogo.js`. Padrão de pintura e formato do título de cada POS escolhidos por RTS.
+- Imagens dos anexos: ficam no aparelho e sobem para o bucket `peritagem-fotos` em `rts/<id do RTS>/`.
+- Só o administrador cadastra/edita modelos de válvula (tela e regra do banco).
 
 ## Banco de dados
 A migração `supabase/migrations/20261013_modelos_valvula_e_rts.sql` cria `valve_models` e `rts_documents`

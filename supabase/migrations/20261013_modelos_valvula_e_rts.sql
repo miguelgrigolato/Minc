@@ -38,7 +38,7 @@ create table if not exists public.rts_documents (
   numero      text check (char_length(numero) <= 200),     -- nº da proposta, ex.: 1135-26
   cliente     text check (char_length(cliente) <= 200),
   produto     text check (char_length(produto) <= 400),
-  status      text not null default 'Rascunho' check (status in ('Rascunho','Em revisão','Emitido')),
+  status      text not null default 'Rascunho' check (status in ('Rascunho','Aguardando aprovação','Aprovado')),
   data        jsonb not null default '{}'::jsonb,
   rev         integer not null default 1,
   created_by  uuid default auth.uid() references auth.users(id),
@@ -57,3 +57,27 @@ create policy "rts: excluir de vez" on public.rts_documents for delete using ((s
 
 create trigger rts_documents_touch before update on public.rts_documents
   for each row execute function public.touch_process();
+
+-- ============================ Aprovação do RTS ============================
+-- Só o administrador libera ("Aprovado"). Qualquer membro pode reabrir (volta a Rascunho) e o RTS aprovado
+-- não pode ser alterado por quem não é administrador sem antes ser reaberto. Reforça no servidor o que o app já faz na tela.
+create or replace function public.rts_guard_approval()
+returns trigger language plpgsql security definer set search_path = '' as $$
+begin
+  if tg_op = 'INSERT' then
+    if new.status = 'Aprovado' and not private.is_admin() then
+      raise exception 'Só o administrador aprova um RTS.' using errcode = '42501';
+    end if;
+    return new;
+  end if;
+  if new.status = 'Aprovado' and old.status is distinct from 'Aprovado' and not private.is_admin() then
+    raise exception 'Só o administrador aprova um RTS.' using errcode = '42501';
+  end if;
+  if old.status = 'Aprovado' and new.status = 'Aprovado' and new.data is distinct from old.data and not private.is_admin() then
+    raise exception 'RTS aprovado não pode ser alterado: reabra para edição.' using errcode = '42501';
+  end if;
+  return new;
+end $$;
+
+create trigger rts_documents_guard before insert or update on public.rts_documents
+  for each row execute function public.rts_guard_approval();
