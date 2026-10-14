@@ -1,4 +1,4 @@
-# Minc — Peritagem (v5.16.0)
+# Minc — Peritagem (v5.16.1)
 
 App web (PWA) de peritagem e recuperação de equipamentos da Indústrias Minc. Sem build: arquivos estáticos
 (`index.html`, `app.js`, ...). Dados no Supabase (projeto `minc-peritagem`) com cópia local no aparelho.
