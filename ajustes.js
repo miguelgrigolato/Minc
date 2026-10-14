@@ -12,6 +12,7 @@ const KEY='minc_settings_v1';
 /* módulos que podem ser desligados. rts: começa DESLIGADO (em desenvolvimento). */
 const MODULOS=[
   {k:'mpLivre',nome:'Permitir item sem cadastro (ficha por família)',desc:'Mostra, ao adicionar matéria-prima, o botão "Não encontrei: item sem cadastro": o perito escolhe a família e preenche a ficha dela, e o item vai para a Lista de cadastro da Estrutura. Desligue para só entrar o que já está cadastrado.',padrao:true},
+  {k:'nomus',nome:'Busca no Nomus (pedido/ordem)',desc:'Mostra o botão "Buscar no Nomus" no processo e o teste de conexão aqui em Configurações. Mantenha desligada até a conexão com o servidor do Nomus estar liberada.',padrao:false},
   {k:'rts',nome:'Aba RTS (Relatório Técnico de Serviço)',desc:'Mostra a aba "RTS" na barra superior para todos os usuários. Desligada, a aba some, mas os RTS já criados continuam guardados e voltam quando ela for ligada de novo.',padrao:false}
 ];
 const DEFAULTS=()=>({modulos:Object.fromEntries(MODULOS.map(m=>[m.k,m.padrao]))});

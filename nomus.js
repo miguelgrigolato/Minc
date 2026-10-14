@@ -23,7 +23,7 @@ const Nomus={
 window.Nomus=Nomus;
 
 /* botão que o app.js coloca no painel "Identificação" */
-window.nomusBtn=()=>`<button type="button" class="btn" data-act="nomusOpen">${ic('search')}Buscar no Nomus</button>`;
+window.nomusBtn=()=>!Settings.on('nomus')?'':`<button type="button" class="btn" data-act="nomusOpen">${ic('search')}Buscar no Nomus</button>`;
 
 function resultHTML(r){
   if(!r)return '';
@@ -74,5 +74,5 @@ Object.assign(MX.sub,{
 });
 
 /* Administração > Configurações: teste da conexão */
-window.vNomusAdmin=()=>`<div class="panel"><h2>Integração com o Nomus</h2><p class="hint">Consulta de pedidos e ordens (somente leitura). A chave fica guardada no servidor, nunca no aplicativo.</p><div class="actions"><button type="button" class="btn" data-act="nomusTeste" ${CLOUD?'':'disabled'}>Testar conexão com o Nomus</button></div><p class="hint" id="nm-teste" aria-live="polite">${CLOUD?'':'Disponível só com o aplicativo conectado à nuvem.'}</p></div>`;
+window.vNomusAdmin=()=>!Settings.on('nomus')?'':`<div class="panel"><h2>Integração com o Nomus</h2><p class="hint">Consulta de pedidos e ordens (somente leitura). A chave fica guardada no servidor, nunca no aplicativo.</p><div class="actions"><button type="button" class="btn" data-act="nomusTeste" ${CLOUD?'':'disabled'}>Testar conexão com o Nomus</button></div><p class="hint" id="nm-teste" aria-live="polite">${CLOUD?'':'Disponível só com o aplicativo conectado à nuvem.'}</p></div>`;
 })();

@@ -1,4 +1,4 @@
-# Minc — Peritagem (v5.17.0)
+# Minc — Peritagem (v5.17.1)
 
 App web (PWA) de peritagem e recuperação de equipamentos da Indústrias Minc. Sem build: arquivos estáticos
 (`index.html`, `app.js`, ...). Dados no Supabase (projeto `minc-peritagem`) com cópia local no aparelho.
@@ -11,7 +11,7 @@ App web (PWA) de peritagem e recuperação de equipamentos da Indústrias Minc. 
 - **RTS (Relatório Técnico de Serviço)** — aba "RTS" no topo (`rts.js`), independente da peritagem. POS com providência,
   atividades padrão (`catalogo.js` > `RTS_BIBLIOTECA`), lista de materiais e PDF no layout R-MINC-060-RTS-PT.
 
-## v5.17.0 — Consulta ao Nomus (somente leitura)
+## v5.17.1 — Consulta ao Nomus (somente leitura) — DESLIGADA por padrão (Configurações > "Busca no Nomus"); servidor do Nomus ainda recusa o TLS do Supabase
 - No processo (Identificação): **Buscar no Nomus** — `PD 002292` (pedido) ou `OS000123` (ordem) — preenche pedido, cliente, equipamento e ordem (`nomus.js`).
 - Configurações: **Testar conexão com o Nomus**. Função `supabase/functions/nomus` (a chave fica no segredo `NOMUS_CHAVE`; base `https://minc.nomus.com.br/minc/rest`). Não grava nada no Nomus.
 
