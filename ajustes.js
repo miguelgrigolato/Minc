@@ -11,7 +11,7 @@ MX.sync=MX.sync||[];MX.boot=MX.boot||[];
 const KEY='minc_settings_v1';
 /* módulos que podem ser desligados. rts: começa DESLIGADO (em desenvolvimento). */
 const MODULOS=[
-  {k:'mpLivre',nome:'Permitir matéria-prima fora da lista',desc:'Mostra, ao adicionar matéria-prima, o botão "Matéria-prima fora da lista" (o perito descreve o item à mão e ele fica marcado como sem cadastro). Desligue quando a lista estiver completa, para só entrar o que está cadastrado.',padrao:true},
+  {k:'mpLivre',nome:'Permitir item sem cadastro (ficha por família)',desc:'Mostra, ao adicionar matéria-prima, o botão "Não encontrei: item sem cadastro": o perito escolhe a família e preenche a ficha dela, e o item vai para a Lista de cadastro da Estrutura. Desligue para só entrar o que já está cadastrado.',padrao:true},
   {k:'rts',nome:'Aba RTS (Relatório Técnico de Serviço)',desc:'Mostra a aba "RTS" na barra superior para todos os usuários. Desligada, a aba some, mas os RTS já criados continuam guardados e voltam quando ela for ligada de novo.',padrao:false}
 ];
 const DEFAULTS=()=>({modulos:Object.fromEntries(MODULOS.map(m=>[m.k,m.padrao]))});

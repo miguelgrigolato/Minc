@@ -1,4 +1,4 @@
-# Minc — Peritagem (v5.15.0)
+# Minc — Peritagem (v5.16.0)
 
 App web (PWA) de peritagem e recuperação de equipamentos da Indústrias Minc. Sem build: arquivos estáticos
 (`index.html`, `app.js`, ...). Dados no Supabase (projeto `minc-peritagem`) com cópia local no aparelho.
@@ -10,6 +10,12 @@ App web (PWA) de peritagem e recuperação de equipamentos da Indústrias Minc. 
   desmontagem entrega à fábrica. O código do formulário fica em `catalogo.js` > `CHECKLIST.codigo` (ainda vazio).
 - **RTS (Relatório Técnico de Serviço)** — aba "RTS" no topo (`rts.js`), independente da peritagem. POS com providência,
   atividades padrão (`catalogo.js` > `RTS_BIBLIOTECA`), lista de materiais e PDF no layout R-MINC-060-RTS-PT.
+
+## v5.16.0 — Lista completa do Nomus por família + item sem cadastro
+- Importação da exportação do Nomus (`dwlc_produtos.xlsx`: colunas Código/Descrição/Unidade/Família de produto) em Configurações > Lista de matéria-prima > Importar planilha (3.416 itens, 59 famílias).
+- Seletor de matéria-prima com filtros por Família e Unidade, ordenação (A–Z, Z–A, código…) e botão `%`; a regra do `%` continua valendo.
+- "Não encontrei: item sem cadastro": o perito escolhe a família e preenche a ficha dela (`fichas.js`, definições em `catalogo.js` > `MP_FICHAS`; famílias sem ficha própria usam a genérica). Campos obrigatórios bloqueiam a conclusão.
+- Estrutura ganhou **Lista de cadastro** (itens sem cadastro por família) e a aba "Para cadastro" no Excel. Migração: `20261015_materia_prima_familia.sql` (aplicada).
 
 ## v5.15.0 — Matéria-prima padronizada (código do Nomus)
 - Administração > Configurações > **Lista de matéria-prima** (`materiais.js`, tabela `catalog_materials`): só o administrador adiciona, edita, desativa, exclui,

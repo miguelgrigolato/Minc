@@ -204,3 +204,136 @@ window.MINC_CATALOGO = {
     'Colocar identificação comercial na embalagem'
   ]
 };
+
+/* ============================================================================================================================
+   FICHAS DE CADASTRO POR FAMÍLIA (matéria-prima "sem cadastro")
+   Quando o funcionário não acha o item na lista, ele escolhe a FAMÍLIA do Nomus e preenche a ficha dela. Cada família "cobra" campos
+   diferentes (parafuso: norma, classe, material, acabamento, rosca…; chapa: material, norma, espessura…). O app monta a descrição no
+   padrão do Nomus a partir da ficha. Campos e opções vieram da análise das 3.417 descrições do relatório de produtos do Nomus.
+   - t:'sel' = lista de opções (com "Outro" para digitar); t:'txt' = texto/medida.
+   - req:1 = obrigatório. na:1 = obrigatório, mas pode marcar "Não se aplica" (o campo some da descrição).
+   - modelo: como a descrição é montada. {campo} = valor; [ ... ] = trecho que só aparece se TODOS os campos dentro dele estiverem preenchidos.
+   Famílias que não estão aqui usam a ficha genérica (MP_FICHA_GENERICA). Para ajustar: edite este bloco e republique.
+   ============================================================================================================================ */
+(function(){
+  const sel=(k,l,o,x)=>Object.assign({k,l,t:'sel',o},x||{});
+  const txt=(k,l,x)=>Object.assign({k,l,t:'txt'},x||{});
+  const ACAB=['ZINCADO PRETO','ZINCADO BRANCO','ZINCADO','BICROMATIZADO'];
+  const F={};
+  F['PARAFUSO']={modelo:'PARAFUSO {tipo} {norma} [CL {classe}] {material} {acab} {rosca}[ - P.{passo}] x {comp}',campos:[
+    sel('tipo','Tipo / cabeça',['SEXTAVADO','SEXTAVADO FLANGEADO','ALLEN CABEÇA CILÍNDRICA','ALLEN CABEÇA CILÍNDRICA SEXTAVADO INTERNO','ALLEN CABEÇA ESCAREADA','ALLEN SEM CABEÇA','ESTOJO','PRISIONEIRO','AUTOATARRAXANTE','CABEÇA CILÍNDRICA COM FENDA','PHILIPS'],{req:1}),
+    sel('norma','Norma',['DIN933','DIN931','DIN 912','DIN 913','DIN 915','DIN 916','DIN 939','DIN 835','DIN 898','DIN 7991','DIN 7970','ASTM A193'],{req:1}),
+    sel('classe','Classe de resistência',['8.8','10.9','12.9','8'],{na:1}),
+    sel('material','Material',['AÇO CARBONO','AÇO CARBONO ASTM A307','INOX AISI 304','INOX AISI 316','INOX AISI 317','AÇO LIGA'],{req:1}),
+    sel('acab','Acabamento',ACAB,{na:1}),
+    txt('rosca','Rosca (diâmetro)',{req:1,ph:'M10  ou  1/2"'}),
+    txt('passo','Passo da rosca',{ph:'1,5'}),
+    txt('comp','Comprimento (mm)',{req:1,ph:'30'})]};
+  F['PORCA']={modelo:'PORCA {tipo} - {norma} [CL. {classe}] {material} {acab} {rosca}[ - P.{passo}]',campos:[
+    sel('tipo','Tipo',['SEXTAVADA','SEXTAVADA AUTO TRAVANTE ALTA','SEXTAVADA AUTO TRAVANTE BAIXA','SEXTAVADA BAIXA','SEXTAVADA FLANGEADA','CASTELO','CASTELO BAIXA','CALOTA','BORBOLETA'],{req:1}),
+    sel('norma','Norma',['DIN 934','DIN 982','DIN 985','DIN 936','DIN 1587','ASTM A194 Gr. 2H','ASTM A307'],{req:1}),
+    sel('classe','Classe de resistência',['8','8.8','10','12'],{na:1}),
+    sel('material','Material',['AÇO CARBONO','AÇO CARBONO ASTM A307','INOX AISI 304','INOX AISI 316','AÇO LIGA'],{req:1}),
+    sel('acab','Acabamento',ACAB,{na:1}),
+    txt('rosca','Rosca (diâmetro)',{req:1,ph:'M16  ou  5/8"'}),
+    txt('passo','Passo da rosca',{ph:'2,0'})]};
+  F['ARRUELA']={modelo:'ARRUELA {tipo}[ - {norma}] {material} {acab} {diam}',campos:[
+    sel('tipo','Tipo',['LISA','PRESSÃO','PRESSÃO HELICOIDAL','SERRILHADA','TRAVAMENTO','CÔNICA','NORD-LOCK','VEDAÇÃO','LISA BORRACHA','LISA ACETAL'],{req:1}),
+    sel('norma','Norma',['DIN 125 A','DIN 127-A','DIN 432','DIN 435','DIN 6798','DIN 9250'],{na:1}),
+    sel('material','Material',['AÇO CARBONO','AÇO MOLA','SAE 1020','INOX AISI 304','INOX AISI 316','BORRACHA NBR'],{req:1}),
+    sel('acab','Acabamento',ACAB,{na:1}),
+    txt('diam','Diâmetro',{req:1,ph:'M10'})]};
+  F['CHAPA']={modelo:'CHAPA {tipo} {material} - {norma} - {esp}[ x {larg}][ x {comp}]',campos:[
+    sel('tipo','Tipo',['LISA','LAMINADA','XADREZ'],{req:1}),
+    sel('material','Material',['AÇO CARBONO','INOX','ALUMÍNIO','POLIURETANO','HARDOX'],{req:1}),
+    sel('norma','Norma / grau',['ASTM A 36','ASTM A 516 Gr 70','ASTM A 516 Gr 60','ASTM A 516','ASTM A 283 Gr.C','ASTM A 572','SAE 1020','SAE 1045','AISI 304','AISI 316','AISI 310','AISI 420'],{req:1}),
+    txt('esp','Espessura',{req:1,ph:'1/2"  ou  6 mm'}),
+    txt('larg','Largura (opcional)',{ph:'1500'}),
+    txt('comp','Comprimento (opcional)',{ph:'3000'})]};
+  F['BARRA']={modelo:'BARRA {tipo} {bitola} {material} {norma}',campos:[
+    sel('tipo','Tipo',['REDONDA','CHATA','QUADRADA','SEXTAVADA','RETANGULAR','ROSCADA','REDONDA FORJADA'],{req:1}),
+    txt('bitola','Bitola / dimensões',{req:1,ph:'2 1/4"   ou   3 1/4" X 1/8"'}),
+    sel('material','Material',['AÇO CARBONO','AÇO CARBONO ESPECIAL','AÇO INOX','AÇO INOX MARTENSÍTICO','BRONZE'],{req:1}),
+    sel('norma','Norma / grau',['SAE 1020','SAE 1045','SAE 4140','SAE 8550','SAE 1010','ASTM A36','ASTM A105','AISI 304','AISI 316','AISI 420'],{req:1})]};
+  F['TUBO']={modelo:'TUBO {diam} {norma}[ {parede}]',campos:[
+    txt('diam','Diâmetro',{req:1,ph:'2"   ou   Ø105 x Ø60'}),
+    sel('norma','Norma / material',['ASTM A106','ASTM A36','ASTM A516 Gr 70','AISI 304','AISI 316','SAE 8550','SAE 1020','SAE 4140'],{req:1}),
+    txt('parede','Parede / schedule',{na:1,ph:'SCH 40   ou   PD 3 mm'})]};
+  F["O'RING"]={modelo:"O'RING {material} {norma} {dureza} SHORE A {medidas} mm",campos:[
+    sel('material','Material',['NITRÍLICA','VITON','FFKM','FFKM CHEMRAZ','SILICONE','FEPM','AFLAS (FEPM)','FKM','EPDM','PTFE','NEOPRENE'],{req:1}),
+    sel('norma','Norma',['ISO 3601','DIN 3771'],{na:1}),
+    txt('dureza','Dureza (Shore A)',{req:1,ph:'70'}),
+    txt('medidas','Medidas (Ø interno X seção)',{req:1,ph:'Ø25,12 X 1,78'})]};
+  F['GAXETA']={modelo:'GAXETA {tipo} {medidas} {material}',campos:[
+    sel('tipo','Tipo',['QUADRADA TRANÇADA','TRANÇADA','CHEVRON','U1','U2','U4','U5','BORRACHA UA2','QUADRADA'],{req:1}),
+    txt('medidas','Medidas',{req:1,ph:'1/4" x 200 mm   ou   Ø80 X Ø104 X 36 mm'}),
+    sel('material','Material',['GRAFITE','PTFE','NITRÍLICA (NBR)','VITON','INCONEL','BORRACHA','POLIURETANO','EPDM'],{req:1})]};
+  F['ROLAMENTOS']={modelo:'ROLAMENTO {tipo} {marca} {desig}',campos:[
+    sel('tipo','Tipo',['RÍGIDO DE ESFERAS','AUTOCOMPENSADOR DE ROLOS','ROLOS CÔNICOS','AXIAL DE ESFERAS','ROLOS CILÍNDRICOS','MANCAL'],{req:1}),
+    sel('marca','Marca',['SKF','FAG','NSK','NTN','TIMKEN'],{na:1}),
+    txt('desig','Designação do rolamento',{req:1,ph:'6304   ou   23030 CCK/C3W33'})]};
+  F['BUCHAS']={modelo:'BUCHA {tipo} {material} {medidas}',campos:[
+    sel('tipo','Tipo',['AUTOLUBRIFICANTE','BIPARTIDA AUTOLUBRIFICANTE','TM 23','CILÍNDRICA COM FLANGE','CILÍNDRICA','BIPARTIDA','REDUÇÃO','FIXAÇÃO'],{req:1}),
+    sel('material','Material',['BRONZE','BRONZE TM-23','AÇO CARBONO + PTFE','INOX + GRAFITE','AÇO GALVANIZADO COM REVESTIMENTO INTERNO EM GRAFITE SÓLIDO','PTFE'],{req:1}),
+    txt('medidas','Medidas (Ø externo X Ø interno)',{req:1,ph:'Ø70 X Ø75'})]};
+  F['ANEL DE VEDAÇÃO']={modelo:'ANEL DE VEDAÇÃO {tipo} . {material} {medidas} mm[ CONF. {desenho}]',campos:[
+    sel('tipo','Tipo',['PLANO','TIPO RASPADOR','TIPO ARRUELA','COM MOLA','PERFIL ESPECIAL','COMPENSADOR','CÔNICO','LIP SEAL','TIPO V'],{req:1}),
+    sel('material','Material',['PTFE','BORRACHA NITRÍLICA','GRAFITE','NEOPRENE','VITON','SILICONE','FKM','INOX','BRONZE'],{req:1}),
+    txt('medidas','Medidas (Ø X Ø X espessura)',{req:1,ph:'Ø65 x Ø75 x 10'}),
+    txt('desenho','Nº do desenho (se houver)',{ph:'041-000448'})]};
+  F['JUNTA']={modelo:'JUNTA {tipo}[ {norma}] {material} {medidas} mm[ CONF. {desenho}]',campos:[
+    sel('tipo','Tipo',['VEDAÇÃO','ESPIRALADA','NÃO METÁLICA RF','NÃO METÁLICA FF','RETANGULAR','MOLDADA','QUADRADA','EXPANSÃO'],{req:1}),
+    sel('norma','Norma',['ASME B16.21','ASME B16.20','ANSI B16.5'],{na:1}),
+    sel('material','Material',['PAPELÃO HIDRÁULICO','GRAFITE','INOX + GRAFITE','PTFE','NEOPRENE','NITRÍLICA (NBR)','AISI 304','AISI 321'],{req:1}),
+    txt('medidas','Medidas',{req:1,ph:'Ø569 x Ø645 x 1,6'}),
+    txt('desenho','Nº do desenho (se houver)',{})]};
+  F['ANEL ELÁSTICO']={modelo:'ANEL ELÁSTICO {tipo} {norma} {material} {medidas} mm',campos:[
+    sel('tipo','Tipo',['EXTERNO','INTERNO','RETENÇÃO'],{req:1}),
+    sel('norma','Norma',['DIN 471','DIN 472','DIN 7993'],{req:1}),
+    sel('material','Material',['AÇO MOLA','AÇO INOX 304','AÇO INOX'],{req:1}),
+    txt('medidas','Medidas',{req:1,ph:'Ø50  ou  Ø90 x 3'})]};
+  F['PINO']={modelo:'PINO {tipo} {norma} {material} {acab} {medidas} mm',campos:[
+    sel('tipo','Tipo',['ELÁSTICO','GRAXEIRO','GRAXEIRO RETO','CÔNICO','CILÍNDRICO','RANHURADO','ROSCADO','TRAVA','GUIA'],{req:1}),
+    sel('norma','Norma',['DIN 1481','ISO 8752','ISO 8741','DIN 71412','DIN 976','DIN 7977'],{na:1}),
+    sel('material','Material',['AÇO MOLA','AÇO INOX AISI 304','AÇO INOX AISI 420','AÇO CARBONO','AÇO GALVANIZADO'],{req:1}),
+    sel('acab','Acabamento',ACAB.concat(['GALVANIZADO']),{na:1}),
+    txt('medidas','Medidas',{req:1,ph:'Ø7 x 50'})]};
+  F['PERFIL']={modelo:'PERFIL "{tipo}" {material} {norma} . {medidas}',campos:[
+    sel('tipo','Perfil',['L','U','I'],{req:1}),
+    sel('material','Material',['AÇO CARBONO','AÇO INOX'],{req:1}),
+    sel('norma','Norma / grau',['ASTM A36','SAE 1020','SAE 1010','ASTM A6','AISI 304','AISI 316'],{req:1}),
+    txt('medidas','Medidas',{req:1,ph:'3" X 3" X 1/4"'})]};
+  F['MOLA']={modelo:'MOLA {tipo} {medidas} {material}[ - DES. {desenho}]',campos:[
+    sel('tipo','Tipo',['HELICOIDAL DE COMPRESSÃO','HELICOIDAL DE TRAÇÃO','HELICOIDAL DE COMPRESSÃO (ESQUADREJADA)','HELICOIDAL DE COMPRESSÃO (FACETADA)'],{req:1}),
+    txt('medidas','Medidas (Ø externo, Ø do fio, comprimento, passo)',{req:1,ph:'Ø39,3 mm Ø3,9 mm 32 mm P.13 mm'}),
+    sel('material','Material',['AISI 302','AÇO MOLA','SAE 6150','SAE 1080','ASTM A228','INCONEL'],{req:1}),
+    txt('desenho','Nº do desenho (se houver)',{})]};
+  F['RETENTOR']={modelo:'RETENTOR {material} {medidas} {norma}',campos:[
+    sel('material','Material',['NBR','VITON','NBR COM MOLA'],{req:1}),
+    txt('medidas','Medidas (Ø interno X Ø externo X largura)',{req:1,ph:'Ø50 X Ø65 X 8 mm'}),
+    sel('norma','Norma',['DIN 3760','DIN 3761'],{na:1})]};
+  F['CHAVETA']={modelo:'CHAVETA {tipo} - {norma} {material} {medidas}',campos:[
+    sel('tipo','Tipo',['PARALELA COM DUAS EXTREMIDADES ARREDONDADAS','PARALELA COM DUAS EXTREMIDADES RETAS','PARALELA RETANGULAR'],{req:1}),
+    sel('norma','Norma',['DIN 6885 A','DIN 6885 B','BS 4235-1'],{req:1}),
+    sel('material','Material',['AÇO SAE 1045','AÇO 1045 TREFILADO','ASTM A307'],{req:1}),
+    txt('medidas','Medidas (largura X altura X comprimento)',{req:1,ph:'18 X 11 X 90 mm'})]};
+  F['FLANGE']={modelo:'FLANGE {tipo} {norma} {classe} {material} DN {dn}',campos:[
+    sel('tipo','Tipo',['SOBREPOSTO FF','SOBREPOSTO PLANO RF','SOBREPOSTO FF COM RANHURAS CONCÊNTRICAS','WN RF','PLANO','CEGO'],{req:1}),
+    sel('norma','Norma',['ASME B16.5','ANSI B16.5','AWWA C207'],{req:1}),
+    sel('classe','Classe / pressão',['150 lbs','300 lbs','150#','300#','CLASSE D'],{req:1}),
+    sel('material','Material',['ASTM A105','ASTM A36','ASTM A283 Gr.C'],{req:1}),
+    txt('dn','DN',{req:1,ph:'8"'})]};
+  F['TINTA']={modelo:'TINTA {base} {espec} {cor}',campos:[
+    sel('base','Base',['LÍQUIDA BASE SOLVENTE','LÍQUIDA BASE D\'ÁGUA'],{req:1}),
+    txt('espec','Especificação / tipo',{req:1,ph:'EPÓXI ÓXIDO DE FERRO N-1202'}),
+    txt('cor','Cor',{req:1,ph:'VERMELHA'})]};
+  /* demais famílias: ficha genérica */
+  const GEN={modelo:'{familia} {tipo}[ {material}][ {norma}][ {medidas}][ {obs}]',campos:[
+    txt('tipo','Descrição do item (tipo / modelo)',{req:1,ph:'o que é o item'}),
+    txt('material','Material',{}),
+    txt('norma','Norma',{}),
+    txt('medidas','Medidas / dimensões',{ph:'Ø50 x 100 mm'}),
+    txt('obs','Marca, referência ou nº do desenho',{})]};
+  Object.assign(window.MINC_CATALOGO,{MP_FICHAS:F,MP_FICHA_GENERICA:GEN,
+    MP_UNIDADE_FAMILIA:{"ABRAÇADEIRA": "un", "ACESSÓRIOS": "un", "ACOPLAMENTO": "un", "ANEL DE VEDAÇÃO": "un", "ANEL ELÁSTICO": "un", "ARRUELA": "un", "ARRUELA DE TRAVA": "un", "ATUADOR ELÉTRICO": "un", "ATUADOR PNEUMÁTICO": "un", "BARRA": "mm", "BUCHAS": "mm", "BUJÃO": "un", "CHAPA": "kg", "CHAVETA": "un", "CONTRA PINO": "un", "CORDÃO O'RING": "m", "CORRENTE": "un", "DIAFRAGMA": "un", "EIXO": "un", "ENGRENAGEM": "un", "FLANGE": "un", "GAXETA": "kg", "GRAMPOS": "un", "GUIA": "un", "JOELHO": "un", "JUNTA": "un", "MANCAL": "un", "MANGUEIRA": "m", "MATERIAL FORJADO": "un", "MATERIAL FUNDIDO": "un", "MOLA": "un", "MOTOREDUTOR": "un", "MOTORES ELÉTRICOS": "un", "O'RING": "un", "PARAFUSO": "un", "PERFIL": "mm", "PEÇA FUNDIDA": "pç", "PEÇA USINADA": "pç", "PINO": "un", "PORCA": "un", "PORCA DE FIXAÇÃO": "un", "QUADRIRING": "un", "REBITE": "un", "REDUTOR": "un", "RETENTOR": "un", "ROLAMENTOS": "un", "SENSORS ELÉTRICOS": "un", "SUCATA": "kg", "TAMPÃO": "un", "TELA": "m²", "TINTA": "galão", "TUBO": "mm", "TÊ": "un", "UNIÃO": "un", "V'RING": "un", "VÁLVULA AGULHA": "un", "VÁLVULA BORBOLETA": "un", "VÁLVULA DE RETENÇÃO": "un", "VÁLVULA ESFERA": "un"}});
+})();

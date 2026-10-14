@@ -118,4 +118,22 @@ dialog.svc-dialog{max-width:640px;width:calc(100% - 24px)}
 .imp-w{margin-top:8px;padding:8px 10px;border:1px solid var(--line);border-radius:4px;background:var(--surface);font-size:13px}
 .imp-w summary{cursor:pointer;font-weight:600}
 @media(max-width:960px){.mat-add{grid-template-columns:1fr 1fr}.mat-add .ma-add-d{grid-column:1/-1}.mat-adm{grid-template-columns:1fr 1fr auto auto;grid-template-areas:"cod cod cod cod" "des des des des" "un gr act del" "c2 c2 c2 c2"}}
+/* filtros, botão % e ficha por família */
+.mat-filters{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:10px}
+.mat-filters .field{margin-bottom:0}
+.mat-search{position:relative}
+.mat-search .pct{position:absolute;right:6px;top:50%;transform:translateY(-50%);min-width:44px;min-height:40px;padding:0 10px;border:1.5px solid var(--line-strong);border-radius:6px;background:var(--surface);font:700 18px/1 inherit;color:var(--ink)}
+.mat-search input[type=search]{padding-right:64px}
+.fi-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 12px}
+.fi-f label{display:block;margin-bottom:6px;font-size:14px;font-weight:600}
+.fi-f .req,.fich-dlg .req{color:var(--danger,#b00020)}
+.fi-f select,.fi-f input[type=text]{width:100%}
+.fi-f .fi-o{margin-top:6px}
+.fi-f.bad select,.fi-f.bad input[type=text]{border-color:var(--danger,#b00020);box-shadow:0 0 0 2px rgba(176,0,32,.18)}
+.fi-na{display:flex;align-items:center;gap:8px;margin-top:6px;font-size:13px;color:var(--muted);font-weight:500}
+.fi-na input{width:20px;height:20px}
+.fich-prev{display:flex;flex-direction:column;gap:4px;margin-top:14px;padding:12px 14px;border:1px solid var(--line);border-left:6px solid var(--ink);border-radius:4px;background:var(--surface)}
+.fich-prev b{word-break:break-word;letter-spacing:.01em}
+.fich-fixed{border-left:6px solid var(--na,#999)}
+@media(max-width:720px){.mat-filters{grid-template-columns:1fr}.fi-grid{grid-template-columns:1fr}}
 @media print{.topnav{display:none}}
