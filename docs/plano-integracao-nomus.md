@@ -97,3 +97,10 @@ As fases 1 e 2 não dependem do Nomus e já tiram retrabalho. A fase 3 só come�
 4. O administrador pode aprovar o próprio RTS, ou a aprovação deve ser sempre de outra pessoa?
 5. Quem cadastra modelo de válvula e quem pode usar "Salvar como modelo": só o administrador?
 6. Formato da planilha de lista de materiais que o Nomus importa (modelo atual de vocês).
+
+## Coleção oficial da API (verificada em 2026-10-14)
+Arquivo: `docs/nomus-api.postman_collection.json` (sem credenciais; host de exemplo `empresa.nomus.com.br/empresa`).
+- Base: `https://<dominio>.nomus.com.br/<dominio>/rest`. Autenticação: header `Authorization: Basic <chave-integração-rest>` (a chave NUNCA fica no repositório nem no app: só como segredo da Edge Function).
+- Listagens: `?pagina=N` (padrão 1) e `?query=campo=valor;campo2=valor2`; datas: `?query=campoData>yyyy-mm-ddTHH:mm:ss`.
+- Throttling: resposta `{"tempoAteLiberar": segundos}` — a função deve esperar/repetir.
+- Endpoints úteis: `/pedidos`, `/propostas`, `/ordens`, `/processos`, `/clientes`, `/produtos`, `/familiasProduto`, `/listasMateriais`, `/componentesListaMateriais`, `/roteirosProduto`, `/saldosEstoqueProduto/:id`.
