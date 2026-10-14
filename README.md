@@ -1,4 +1,4 @@
-# Minc — Peritagem (v5.16.1)
+# Minc — Peritagem (v5.17.0)
 
 App web (PWA) de peritagem e recuperação de equipamentos da Indústrias Minc. Sem build: arquivos estáticos
 (`index.html`, `app.js`, ...). Dados no Supabase (projeto `minc-peritagem`) com cópia local no aparelho.
@@ -10,6 +10,10 @@ App web (PWA) de peritagem e recuperação de equipamentos da Indústrias Minc. 
   desmontagem entrega à fábrica. O código do formulário fica em `catalogo.js` > `CHECKLIST.codigo` (ainda vazio).
 - **RTS (Relatório Técnico de Serviço)** — aba "RTS" no topo (`rts.js`), independente da peritagem. POS com providência,
   atividades padrão (`catalogo.js` > `RTS_BIBLIOTECA`), lista de materiais e PDF no layout R-MINC-060-RTS-PT.
+
+## v5.17.0 — Consulta ao Nomus (somente leitura)
+- No processo (Identificação): **Buscar no Nomus** — `PD 002292` (pedido) ou `OS000123` (ordem) — preenche pedido, cliente, equipamento e ordem (`nomus.js`).
+- Configurações: **Testar conexão com o Nomus**. Função `supabase/functions/nomus` (a chave fica no segredo `NOMUS_CHAVE`; base `https://minc.nomus.com.br/minc/rest`). Não grava nada no Nomus.
 
 ## v5.16.0 — Lista completa do Nomus por família + item sem cadastro
 - Importação da exportação do Nomus (`dwlc_produtos.xlsx`: colunas Código/Descrição/Unidade/Família de produto) em Configurações > Lista de matéria-prima > Importar planilha (3.416 itens, 59 famílias).
