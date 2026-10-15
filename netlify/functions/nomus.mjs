@@ -47,8 +47,13 @@ function handshake(host, opts) {
 
 let modo = null; // qual configuração de TLS funcionou (padrão ou legada)
 async function nomus(path, query, tries = 3) {
-  // o Nomus espera ?query=campo=valor (o "=" do filtro NÃO pode ir codificado); só o valor é codificado
-  const enc = (q) => q.split(";").map((p) => { const i = p.search(/[=<>]/); return i < 0 ? encodeURIComponent(p) : p.slice(0, i + 1) + encodeURIComponent(p.slice(i + 1)); }).join(";");
+  // o Nomus usa RSQL: ?query=campo=valor; valores com espaço ou símbolos precisam de aspas. O "=" do filtro NÃO vai codificado.
+  const enc = (q) => q.split(";").map((p) => {
+    const i = p.search(/[=<>]/); if (i < 0) return encodeURIComponent(p);
+    let j = i; while (j < p.length && /[=<>]/.test(p[j])) j++;
+    const v = p.slice(j).replace(/^"|"$/g, "");
+    return p.slice(0, j) + encodeURIComponent(`"${v.replace(/"/g, "")}"`);
+  }).join(";");
   const url = `${BASE}/${path}${query ? `?query=${enc(query)}` : ""}`;
   const headers = { Authorization: `Basic ${CHAVE}`, "Content-Type": "application/json" };
   for (let i = 0; i < tries; i++) {
