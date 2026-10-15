@@ -195,4 +195,7 @@ ul.hist li span{color:var(--muted);font-size:14px}
 .help-b{display:grid;grid-template-columns:minmax(120px,32%) 1fr;gap:6px 12px;margin:6px 0 10px;padding:10px 12px;border:1px solid var(--line);border-radius:6px;background:var(--surface-2)}
 .help-b dt{font-weight:700}.help-b dd{margin:0}
 @media(max-width:600px){.help-b{grid-template-columns:1fr}.help-b dd{margin-bottom:6px}}
+.cad-c{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;margin-top:8px;padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:var(--surface-2)}
+.cad-c span{overflow-wrap:anywhere}
+@media(max-width:600px){.cad-c{grid-template-columns:1fr}}
 @media print{.topnav{display:none}}

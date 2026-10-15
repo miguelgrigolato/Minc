@@ -173,7 +173,7 @@ function admRows(){
 window.vMaterialsAdmin=function(){
   const edit=isAdmin(),st=A(),fams=Mats.families(),r=admRows();
   const note=CLOUD&&Mats.missing?'<p class="errbox" style="margin-bottom:12px">A tabela da lista de matéria-prima ainda não existe na nuvem. Peça ao responsável técnico para aplicar a migração.</p>':(CLOUD&&Mats.src!=='cloud'?'<p class="errbox" style="margin-bottom:12px">Mostrando a cópia deste aparelho. Entre com internet para carregar e editar a lista da nuvem.</p>':'');
-  return `${note}<div class="panel"><div class="ph-row"><div><h2>Lista de matéria-prima (Nomus)</h2><p class="hint" style="margin:0">É daqui que o perito escolhe a matéria-prima ao adicionar em um componente: ele só marca, não digita. Só o administrador adiciona, edita ou exclui. Itens desativados deixam de aparecer para escolha, mas continuam nos documentos já feitos. O código secundário aparece como informação complementar.</p></div><div class="actions"><button class="btn" data-act="matImport">${ic('doc')}Importar planilha</button><button class="btn" data-act="matExport">${ic('download')}Exportar CSV</button></div></div>
+  return `${note}<div class="panel"><div class="ph-row"><div><h2>Lista de matéria-prima (Nomus)</h2><p class="hint" style="margin:0">É daqui que o perito escolhe a matéria-prima ao adicionar em um componente: ele só marca, não digita. Só o administrador adiciona, edita ou exclui. Itens desativados deixam de aparecer para escolha, mas continuam nos documentos já feitos. O código secundário aparece como informação complementar.</p></div><div class="actions">${edit&&window.nomusCatBtn?nomusCatBtn():''}<button class="btn" data-act="matImport">${ic('doc')}Importar planilha</button><button class="btn" data-act="matExport">${ic('download')}Exportar CSV</button></div></div>
 ${edit?`<form class="mat-add" data-submit="matAdmAdd"><div class="field"><label for="ma-cod">Código do Nomus</label><input id="ma-cod" name="codigo" data-keep-case autocomplete="off" placeholder="01.03.1.1.1.1.2.15.19"></div><div class="field ma-add-d"><label for="ma-des">Descrição</label><input id="ma-des" name="descricao" data-keep-case autocomplete="off" placeholder="PARAFUSO SEXTAVADO DIN933 CL 8.8 … M10 x 30"></div><div class="field"><label for="ma-gr">Família</label><input id="ma-gr" name="familia" list="dl-mat-gr" data-keep-case autocomplete="off" placeholder="PARAFUSO"></div><div class="field"><label for="ma-un">Unidade</label><input id="ma-un" name="unidade" list="dl-mat-un" data-keep-case autocomplete="off" value="un"></div><div class="field"><label for="ma-c2">Cód. secundário</label><input id="ma-c2" name="codigo2" data-keep-case autocomplete="off" placeholder="opcional"></div><button class="btn primary" type="submit">${ic('plus')}Adicionar</button></form>`:''}
 <datalist id="dl-mat-gr">${fams.map(([g])=>`<option value="${esc(g==='SEM FAMÍLIA'?'':g)}">`).join('')}</datalist><datalist id="dl-mat-un">${['un','pç','kg','m','mm','cm','m²','L','mL','cj','jogo','galão','lata','cartela'].map(u=>`<option value="${u}">`).join('')}</datalist>
 <div style="margin-top:14px" id="mat-filt">${filtersHTML('adm',st,Mats.list)}</div>
@@ -236,6 +236,20 @@ function plano(itens){
   }
   return{add,upd,same};
 }
+/* grava o plano (novos + alterados) na lista: usado pela planilha e pela atualização automática pelo Nomus */
+async function aplicarPlano(p,prog=()=>{}){
+  if(!CLOUD){
+    p.add.forEach(it=>Mats.list.push(Mats.prep({id:uid('lmt'),...it,active:true})));
+    p.upd.forEach(it=>{const cur=Mats.list.find(x=>x.id===it.id);Object.assign(cur,{codigo2:it.codigo2,descricao:it.descricao,unidade:it.unidade,familia:it.familia});Mats.prep(cur)});
+    await Mats.persist();
+  }else{
+    for(let i=0;i<p.add.length;i+=200){const r=await SB.from('catalog_materials').insert(p.add.slice(i,i+200).map(it=>toRow({...it,active:true})));if(r.error)throw r.error;prog(`Gravando… ${Math.min(i+200,p.add.length)}/${p.add.length}`)}
+    for(const it of p.upd){const r=await SB.from('catalog_materials').update({codigo2:it.codigo2||null,descricao:it.descricao,unidade:it.unidade,familia:it.familia||null}).eq('id',it.id);if(r.error)throw r.error}
+    for(let i=0;i<(p.off||[]).length;i+=100){const r=await SB.from('catalog_materials').update({active:false}).in('id',p.off.slice(i,i+100));if(r.error)throw r.error}
+    await Mats.bump();await Mats.refresh(true);
+  }
+}
+window.matPlano=plano;window.matAplicar=aplicarPlano;
 const lista=(arr,n=6)=>arr.slice(0,n).map(esc).join('<br>')+(arr.length>n?`<br>… e mais ${arr.length-n}`:'');
 function previaHTML(a,p,sheets){
   const porFam=new Map();for(const it of a.itens)porFam.set(it.familia||'SEM FAMÍLIA',(porFam.get(it.familia||'SEM FAMÍLIA')||0)+1);
@@ -286,15 +300,7 @@ Object.assign(MX.sub,{
       }
       if(!await guard())return;
       const {p}=f._plan;
-      if(!CLOUD){
-        p.add.forEach(it=>Mats.list.push(Mats.prep({id:uid('lmt'),...it,active:true})));
-        p.upd.forEach(it=>{const cur=Mats.list.find(x=>x.id===it.id);Object.assign(cur,{codigo2:it.codigo2,descricao:it.descricao,unidade:it.unidade,familia:it.familia});Mats.prep(cur)});
-        await Mats.persist();
-      }else{
-        for(let i=0;i<p.add.length;i+=200){const r=await SB.from('catalog_materials').insert(p.add.slice(i,i+200).map(it=>toRow({...it,active:true})));if(r.error)throw r.error;go.textContent=`Gravando… ${Math.min(i+200,p.add.length)}/${p.add.length}`}
-        for(const it of p.upd){const r=await SB.from('catalog_materials').update({codigo2:it.codigo2||null,descricao:it.descricao,unidade:it.unidade,familia:it.familia||null}).eq('id',it.id);if(r.error)throw r.error}
-        await Mats.bump();await Mats.refresh(true);
-      }
+      await aplicarPlano(p,t=>{go.textContent=t});
       closeDialog(f.closest('dialog'));renderMain();
       toast(`Importação concluída: ${p.add.length} novos, ${p.upd.length} atualizados.`,{ms:6000});
     }catch(e){console.error(e);prev.innerHTML=`<span style="color:var(--danger,#b00020)">${esc(e.code==='23505'?dupMsg:(e.message||cloudErrMsg(e)))}</span>`}

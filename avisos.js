@@ -25,6 +25,7 @@ function compute(){
       if(r.status==='Rascunho'&&r.motivoDevolucao)out.push({id:'dev:'+r.id+':'+(+r.devolucoes||0),kind:'rts',rid:r.id,t:`RTS ${r.numero||'sem nº'} devolvido para ajustes`,s:r.motivoDevolucao,at:r.updatedAt});
     });
     const cmp=window.Cmp?Cmp.list:[];
+    if(mgr&&window.Cad&&Cad.n)out.push({id:'cad:'+Cad.n+':'+(window.Mats?Mats.ver:''),kind:'cad',t:`${Cad.n} ${Cad.n===1?'item sem cadastro já existe':'itens sem cadastro já existem'} no Nomus`,s:'Confira e vincule o código ao item',at:new Date().toISOString()});
     if(mgr)cmp.filter(x=>x.status==='Pendente').forEach(x=>out.push({id:'cmp:'+x.id+':'+x.updated_at,kind:'cmp',cid:x.id,t:`Diferenças RTS ${x.data?.rts?.numero||''} × D.E para avaliar`,s:`${x.total} ${x.total===1?'diferença':'diferenças'} · enviado por ${x.created_by_name||'—'}`,at:x.updated_at}));
     cmp.filter(x=>x.status!=='Pendente'&&x.created_by_name===me()).forEach(x=>out.push({id:'cmpok:'+x.id+':'+x.status,kind:'cmp',cid:x.id,t:`Comparativo RTS ${x.data?.rts?.numero||''} × D.E avaliado: ${x.status}`,s:x.note||`Por ${x.evaluated_by_name||'—'}`,at:x.evaluated_at||x.updated_at,info:true}));
   }
@@ -64,7 +65,7 @@ Object.assign(MX.act,{
     const l=compute(),s=seen();
     const perm='Notification' in window?Notification.permission:'unsupported';
     const permRow=perm==='default'?`<div class="mdl-hint" style="margin:10px 0"><b>Receber avisos do sistema?</b> Com o app aberto em segundo plano, o celular ou o computador mostra um aviso quando chegar algo novo.<div class="actions" style="margin-top:8px"><button class="btn" data-act="avisosPerm">${ic('bell')}Ativar avisos do sistema</button></div></div>`:perm==='denied'?'<p class="hint">Os avisos do sistema estão bloqueados no navegador. Para ligar, libere as notificações deste site nas configurações do navegador.</p>':'';
-    dialog(`<div class="dlg-body"><h2>Avisos</h2>${permRow}${l.length?`<ul class="docs">${l.map(a=>`<li class="doc ${s.has(a.id)?'':'new'}"><div class="doc-h">${s.has(a.id)?'':'<span class="badge st-amber">Novo</span>'}<b>${esc(a.t)}</b><small>${fmt(a.at)}</small></div><div class="doc-m">${esc(a.s||'')}</div><div class="doc-a"><button class="btn" data-act="avisoOpen" data-kind="${a.kind}" data-id="${esc(a.rid||a.cid)}">Abrir</button></div></li>`).join('')}</ul>`:'<p class="hint">Nenhum aviso.</p>'}<div class="actions end"><button class="btn" data-act="closeDlg">Fechar</button>${l.length?'<button class="btn primary" data-act="avisosLidos">Marcar todos como lidos</button>':''}</div></div>`,{cls:'svc-dialog'});
+    dialog(`<div class="dlg-body"><h2>Avisos</h2>${permRow}${l.length?`<ul class="docs">${l.map(a=>`<li class="doc ${s.has(a.id)?'':'new'}"><div class="doc-h">${s.has(a.id)?'':'<span class="badge st-amber">Novo</span>'}<b>${esc(a.t)}</b><small>${fmt(a.at)}</small></div><div class="doc-m">${esc(a.s||'')}</div><div class="doc-a"><button class="btn" data-act="avisoOpen" data-kind="${a.kind}" data-id="${esc(a.rid||a.cid||'')}">Abrir</button></div></li>`).join('')}</ul>`:'<p class="hint">Nenhum aviso.</p>'}<div class="actions end"><button class="btn" data-act="closeDlg">Fechar</button>${l.length?'<button class="btn primary" data-act="avisosLidos">Marcar todos como lidos</button>':''}</div></div>`,{cls:'svc-dialog'});
   },
   avisosLidos(el){const s=seen();compute().forEach(a=>s.add(a.id));saveSeen(s);closeDialog(el.closest('dialog'));refreshBell()},
   async avisosPerm(el){try{const r=await Notification.requestPermission();toast(r==='granted'?'Avisos do sistema ativados neste aparelho.':'Avisos do sistema não foram permitidos.');closeDialog(el.closest('dialog'))}catch{toast('Este navegador não permite avisos do sistema.')}},
@@ -72,6 +73,7 @@ Object.assign(MX.act,{
     const {kind,id}=el.dataset,s=seen();compute().filter(a=>(a.rid||a.cid)===id).forEach(a=>s.add(a.id));saveSeen(s);
     closeDialog(el.closest('dialog'));refreshBell();
     if(kind==='rts'){MX.act.rtsOpen({dataset:{id}});return}
+    if(kind==='cad'){MX.act.cadAbrir({dataset:{pid:''}});return}
     if(kind==='cmp'){if(typeof isManager==='function'&&isManager()){S.screen='panel';render();setTimeout(()=>MX.act.cmpView({dataset:{id}}),50)}else{const x=Cmp.list.find(c=>c.id===id);if(x)MX.act.rtsOpen({dataset:{id:x.rts_id}})}}
   }
 });

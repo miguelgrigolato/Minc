@@ -166,6 +166,35 @@ async function buscar(q, tipoForcado, ehExato) {
   return { tipo: "lista", itens: itens.slice(0, 25).map(({ _o, ...r }) => r), total: itens.length };
 }
 
+
+/* ---------- catálogo de produtos (matéria-prima) para o app atualizar a lista ----------
+   O app pede páginas aos poucos (ação "produtos"); cada chamada lê algumas páginas dentro de ~20 s e diz de qual página continuar. */
+let unidades = null;
+async function mapaUnidades() {
+  if (unidades) return unidades;
+  const m = {};
+  try {
+    for (let pg = 1; pg <= 5; pg++) {
+      const l = await nomus("unidadesMedida", "", 3, pg);
+      if (!Array.isArray(l) || !l.length) break;
+      for (const u of l) m[u.id] = u.sigla || u.simbolo || u.nome || u.descricao || "";
+    }
+  } catch {}
+  return (unidades = m);
+}
+const ativo = (p) => p.ativo !== false && !p.bloqueado;
+async function paginaProdutos(pagina) {
+  const un = await mapaUnidades(), ini = Date.now(), itens = [];
+  let pg = Math.max(1, +pagina || 1), fim = false;
+  while (Date.now() - ini < 18000) {
+    const l = await nomus("produtos", "", 3, pg);
+    if (!Array.isArray(l) || !l.length) { fim = true; break; }
+    for (const p of l) itens.push({ codigo: p.codigo || "", descricao: p.descricao || "", unidade: un[p.idUnidadeMedida] || p.unidadeMedida || p.nomeUnidadeMedida || "", familia: p.nomeFamiliaProduto || "", tipo: p.nomeTipoProduto || "", grupo: p.nomeGrupoProduto || "", ativo: ativo(p) });
+    pg++;
+  }
+  return { itens, proxima: fim ? null : pg };
+}
+
 /* só usuário ativo do app (admin, gestor ou operador) */
 async function usuario(auth) {
   if (!auth.startsWith("Bearer ")) return null;
@@ -193,6 +222,10 @@ export default async (req) => {
   let body = {}; try { body = await req.json(); } catch {}
   try {
     if (body.acao === "ping") { const t = await nomus("pedidos", "codigoPedido=PD 000000"); return json(200, { ok: true, amostra: Array.isArray(t), tls: modo || "padrão" }); }
+    if (body.acao === "produtos") {
+      if (!["admin", "gestor"].includes(who.role)) return json(403, { error: "Só administrador ou gestor atualiza a lista pelo Nomus." });
+      return json(200, await paginaProdutos(body.pagina));
+    }
     if (body.acao === "buscar") {
       const q = String(body.q || "");
       const r = await buscar(q, ["pedido", "ordem", "processo"].includes(body.tipo) ? body.tipo : null, !!body.exato);
