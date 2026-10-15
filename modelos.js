@@ -60,7 +60,7 @@ MX.sync.push(()=>Models.refresh());
 /* ============================== Administração > Modelos de válvula ============================== */
 const newModel=()=>({id:uid('MOD'),name:'',fabricante:'',tipo:'',dn:'',active:true,components:[],rev:null});
 const newMc=(o={})=>({id:uid('MC'),pos:'',name:'',qtd:'1',unid:'un',...o});
-const canEditModels=()=>!CLOUD||S.user?.cloudRole==='admin';
+const canEditModels=()=>!CLOUD||['admin','gestor'].includes(S.user?.cloudRole);
 const mErr=e=>e?.message||cloudErrMsg(e);
 
 function mdlRow(m){
@@ -101,11 +101,11 @@ function parseList(txt){
 }
 Object.assign(MX.act,{
   mdlNew(){S.mdl={draft:newModel(),isNew:true};renderMain();scrollTo(0,0)},
-  mdlEdit(el){const m=Models.get(el.dataset.id);if(!m)return;if(!canEditModels()){toast('Só o administrador edita os modelos.');return}S.mdl={draft:JSON.parse(JSON.stringify(m)),isNew:false};renderMain();scrollTo(0,0)},
+  mdlEdit(el){const m=Models.get(el.dataset.id);if(!m)return;if(!canEditModels()){toast('Só o administrador ou o gestor edita os modelos.');return}S.mdl={draft:JSON.parse(JSON.stringify(m)),isNew:false};renderMain();scrollTo(0,0)},
   mdlDup(el){const m=Models.get(el.dataset.id);if(!m)return;const c=JSON.parse(JSON.stringify(m));c.id=uid('MOD');c.rev=null;c.name=(m.name+' (cópia)').slice(0,200);c.components.forEach(x=>x.id=uid('MC'));S.mdl={draft:c,isNew:true};renderMain();scrollTo(0,0)},
   async mdlDel(el){
     const m=Models.get(el.dataset.id);if(!m)return;
-    if(!canEditModels()){toast('Só o administrador exclui modelos.');return}
+    if(!canEditModels()){toast('Só o administrador ou o gestor exclui modelos.');return}
     if(!await ask({title:`Excluir “${m.name}”?`,body:'Os processos já criados com este modelo não mudam (eles guardam uma cópia dos componentes).',ok:'Excluir',danger:true}))return;
     const r=await Models.remove(m.id);if(r.error){toast(mErr(r.error));return}
     renderMain();toast('Modelo excluído.');

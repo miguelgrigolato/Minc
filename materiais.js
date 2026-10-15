@@ -15,7 +15,7 @@
 const MX=window.MINC_EXT=window.MINC_EXT||{};
 for(const k of ['act','chg','sub','inp','views'])MX[k]=MX[k]||{};
 MX.sync=MX.sync||[];MX.boot=MX.boot||[];
-const isAdmin=()=>CLOUD?S.user?.cloudRole==='admin':S.user?.role==='Administrador';
+const isAdmin=()=>CLOUD?['admin','gestor'].includes(S.user?.cloudRole):['Administrador','Gestor'].includes(S.user?.role);
 const norm=s=>String(s??'').trim();
 const fold=s=>String(s??'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase();
 const missing=e=>!!e&&(e.code==='PGRST205'||e.code==='42P01'||/relation .* does not exist|schema cache/i.test(e.message||''));
@@ -113,7 +113,7 @@ const searchHTML=(id,inp,val,auto)=>`<div class="search mat-search">${ic('search
 
 /* ============================== Operações do administrador ============================== */
 async function guard(){
-  if(!isAdmin()){toast('Só o administrador altera a lista de matéria-prima.');return false}
+  if(!isAdmin()){toast('Só o administrador ou o gestor altera a lista de matéria-prima.');return false}
   if(CLOUD){
     if(!navigator.onLine){toast('Sem conexão: a lista só pode ser editada online.');return false}
     if(Mats.missing){toast('A tabela da lista de matéria-prima ainda não existe na nuvem.');return false}
@@ -264,7 +264,7 @@ Object.assign(MX.act,{
     i.dispatchEvent(new Event('input',{bubbles:true}));
   },
   matImport(){
-    if(!isAdmin()){toast('Só o administrador altera a lista de matéria-prima.');return}
+    if(!isAdmin()){toast('Só o administrador ou o gestor altera a lista de matéria-prima.');return}
     dialog(`<form class="dlg-body" data-submit="matImport" data-step="0"><h2>Importar planilha do Nomus</h2><p>Escolha o arquivo (.xlsx ou .csv) do relatório de produtos. Colunas lidas: <b>Código do produto</b>, <b>Descrição do produto</b>, <b>Unidade de medida</b> e <b>Família de produto</b> (e <b>Cód. Secundário</b>, se existir). Itens com o mesmo código são atualizados; os novos entram. <b>Nada é excluído.</b></p><div class="field"><label for="mi-f">Arquivo</label><input id="mi-f" name="f" type="file" accept=".xlsx,.xls,.csv" required></div><div id="mi-prev" class="hint" aria-live="polite"></div><div class="actions end"><button type="button" class="btn" data-act="closeDlg">Cancelar</button><button class="btn primary" type="submit" id="mi-go">Ver prévia</button></div></form>`);
   }
 });

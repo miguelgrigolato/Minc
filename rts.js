@@ -31,7 +31,7 @@ const missing=e=>!!e&&(e.code==='PGRST205'||e.code==='42P01'||/relation .* does 
 const today=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
 const nowHM=()=>{const d=new Date();return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')};
 const dedupe=a=>[...new Set(a)];
-const isAdminU=()=>CLOUD?S.user?.cloudRole==='admin':S.user?.role==='Administrador';
+const isAdminU=()=>CLOUD?['admin','gestor'].includes(S.user?.cloudRole):['Administrador','Gestor'].includes(S.user?.role);   // quem aprova: administrador ou gestor
 
 /* ============================== Dados ============================== */
 let RTS=[];
@@ -390,14 +390,14 @@ Object.assign(MX.act,{
   },
   async rtsApprove(){
     const r=curR();if(!r)return;
-    if(!isAdminU()){toast('Só o administrador aprova.');return}
+    if(!isAdminU()){toast('Só o administrador ou o gestor aprova.');return}
     if(!await ask({title:`Aprovar e liberar o RTS ${r.numero||''}?`,body:`O PDF passará a sair com “Aprovado por ${S.user?.name||''}” e a data de agora. Para alterar depois, será preciso reabrir e aprovar de novo.`,ok:'Aprovar e liberar'}))return;
     r.status=S_APR;r.aprovadoPor=S.user?.name||'';r.aprovadoPorId=S.user?.id||'';r.aprovadoEm=new Date().toISOString();r.motivoDevolucao='';
     touchR(r);renderMain();toast('RTS aprovado.');
   },
   rtsReturn(){
     const r=curR();if(!r)return;
-    if(!isAdminU()){toast('Só o administrador devolve para ajustes.');return}
+    if(!isAdminU()){toast('Só o administrador ou o gestor devolve para ajustes.');return}
     dialog(`<form class="dlg-body" data-submit="rtsReturn"><h2>Devolver para ajustes</h2><p>O RTS volta a rascunho e quem elaborou vê o motivo.</p><div class="field"><label for="rr-m">O que precisa ser ajustado</label><textarea id="rr-m" name="motivo" rows="4" data-keep-case required autofocus></textarea></div><div class="actions end"><button type="button" class="btn" data-act="closeDlg">Cancelar</button><button class="btn primary" type="submit">Devolver</button></div></form>`);
   },
   async rtsReopen(){

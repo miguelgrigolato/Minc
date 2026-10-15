@@ -11,7 +11,7 @@
 const MX=window.MINC_EXT=window.MINC_EXT||{};
 for(const k of ['act','chg','sub','inp','views'])MX[k]=MX[k]||{};
 MX.sync=MX.sync||[];MX.boot=MX.boot||[];
-const isAdmin=()=>CLOUD?S.user?.cloudRole==='admin':S.user?.role==='Administrador';
+const isAdmin=()=>CLOUD?['admin','gestor'].includes(S.user?.cloudRole):['Administrador','Gestor'].includes(S.user?.role);
 const norm=s=>String(s??'').trim();
 const key=s=>norm(s).toLowerCase();
 const byName=(a,b)=>String(a.name).localeCompare(String(b.name),'pt-BR');
@@ -27,7 +27,7 @@ function clash(name,codigo,exceptId){
 }
 /* ações que mudam a lista: só administrador; na nuvem precisam de internet e da lista carregada */
 async function guard(){
-  if(!isAdmin()){toast('Só o administrador altera a lista de serviços.');return false}
+  if(!isAdmin()){toast('Só o administrador ou o gestor altera a lista de serviços.');return false}
   if(CLOUD){
     if(!navigator.onLine){toast('Sem conexão: a lista de serviços só pode ser editada online.');return false}
     if(CATALOG.src!=='cloud'){toast('Carregue o catálogo da nuvem antes de editar (entre com internet).');return false}
@@ -128,7 +128,7 @@ Object.assign(MX.act,{
     a.download='servicos-minc-'+new Date().toISOString().slice(0,10)+'.csv';document.body.append(a);a.click();a.remove();
   },
   svcImport(){
-    if(!isAdmin()){toast('Só o administrador altera a lista de serviços.');return}
+    if(!isAdmin()){toast('Só o administrador ou o gestor altera a lista de serviços.');return}
     dialog(`<form class="dlg-body" data-submit="svcImport" data-step="0"><h2>Importar lista de serviços</h2><p>Uma linha por serviço: <b>código</b> e <b>nome</b>, separados por tabulação (cole direto do Excel) ou ponto e vírgula. Serviços com o mesmo código são atualizados; os novos são incluídos. Nada é excluído.</p><div class="field"><label for="si-t">Lista</label><textarea id="si-t" name="t" rows="10" data-keep-case placeholder="04.02.1.000123;SERVIÇO DE CORTE DE CHAPA" autofocus></textarea></div><div id="si-prev" class="hint" aria-live="polite"></div><div class="actions end"><button type="button" class="btn" data-act="closeDlg">Cancelar</button><button class="btn primary" type="submit" id="si-go">Ver prévia</button></div></form>`);
   }
 });

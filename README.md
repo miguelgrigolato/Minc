@@ -1,4 +1,4 @@
-# Minc — Peritagem (v5.17.1)
+# Minc — Peritagem (v5.18.0)
 
 App web (PWA) de peritagem e recuperação de equipamentos da Indústrias Minc. Sem build: arquivos estáticos
 (`index.html`, `app.js`, ...). Dados no Supabase (projeto `minc-peritagem`) com cópia local no aparelho.
@@ -10,6 +10,15 @@ App web (PWA) de peritagem e recuperação de equipamentos da Indústrias Minc. 
   desmontagem entrega à fábrica. O código do formulário fica em `catalogo.js` > `CHECKLIST.codigo` (ainda vazio).
 - **RTS (Relatório Técnico de Serviço)** — aba "RTS" no topo (`rts.js`), independente da peritagem. POS com providência,
   atividades padrão (`catalogo.js` > `RTS_BIBLIOTECA`), lista de materiais e PDF no layout R-MINC-060-RTS-PT.
+
+## v5.18.0 — Perfil Gestor, painel, histórico e busca
+- **Perfil Gestor** (cadastro de usuário): acesso a tudo, menos a aba de usuários (e a auditoria deles). Edita catálogos, modelos e configurações, aprova RTS e vê o Painel.
+  Banco: `private.is_manager()`, políticas dos catálogos trocadas de `is_admin` para `is_manager`; função `admin-users` v3. Migração `20261016_perfil_gestor_e_historico.sql` (aplicada).
+- **Painel de gestão** (aba "Painel", só admin/gestor, `painel.js`): processos parados (prazo ajustável), sem ordem, itens sem cadastro por família, RTS aguardando, envios pendentes, atividade recente.
+- **Histórico de alterações** por processo (botão "Histórico" na ficha, só admin/gestor): tabela `process_history`, preenchida por gatilho; mostra quem, quando e quais campos mudaram.
+- **Busca em tudo** (lupa na barra superior, todos): processos, componentes/materiais, RTS, modelos e lista do Nomus, com `%`.
+- **Envio para a nuvem**: tocar em "N pendentes" mostra o que ainda não foi enviado e permite enviar agora.
+- Modelos editáveis em Word dos formulários (DEP, RTS e checklist) em `docs/modelos-formularios/`.
 
 ## v5.17.1 — Consulta ao Nomus (somente leitura) — DESLIGADA por padrão (Configurações > "Busca no Nomus"); servidor do Nomus ainda recusa o TLS do Supabase
 - No processo (Identificação): **Buscar no Nomus** — `PD 002292` (pedido) ou `OS000123` (ordem) — preenche pedido, cliente, equipamento e ordem (`nomus.js`).

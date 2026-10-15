@@ -17,7 +17,7 @@ const MODULOS=[
 ];
 const DEFAULTS=()=>({modulos:Object.fromEntries(MODULOS.map(m=>[m.k,m.padrao]))});
 const missing=e=>!!e&&(e.code==='PGRST205'||e.code==='42P01'||/relation .* does not exist|schema cache/i.test(e.message||''));
-const isAdmin=()=>CLOUD?S.user?.cloudRole==='admin':S.user?.role==='Administrador';
+const isAdmin=()=>CLOUD?['admin','gestor'].includes(S.user?.cloudRole):['Administrador','Gestor'].includes(S.user?.role);   // administrador ou gestor
 
 const Settings={
   data:null,missing:false,src:'local',
@@ -46,7 +46,7 @@ const Settings={
     const next={...this.data.modulos,[k]:!!on};
     if(!CLOUD||this.missing){this.data.modulos=next;this.src='local';this.persist();return{local:true}}
     if(!navigator.onLine)return{error:{message:'Sem conexão: a configuração só pode ser alterada online.'}};
-    if(!isAdmin())return{error:{message:'Só o administrador altera as configurações.'}};
+    if(!isAdmin())return{error:{message:'Só o administrador ou o gestor altera as configurações.'}};
     const r=await SB.from('app_settings').upsert({key:'modulos',value:next},{onConflict:'key'});
     if(r.error){
       if(missing(r.error)){this.missing=true;this.data.modulos=next;this.src='local';this.persist();return{local:true}}
@@ -72,7 +72,7 @@ window.vSettingsAdmin=function(){
   Settings.load();
   const edit=!CLOUD||isAdmin();
   const note=CLOUD&&Settings.missing?'<p class="errbox" style="margin-bottom:12px">A tabela de configurações ainda não existe na nuvem; por enquanto a escolha vale só neste aparelho. Peça ao responsável técnico para aplicar a migração 20261013_modelos_valvula_e_rts.sql.</p>':(CLOUD&&Settings.src!=='cloud'?'<p class="errbox" style="margin-bottom:12px">Mostrando a cópia deste aparelho. Entre com internet para carregar as configurações da nuvem.</p>':'');
-  return `${note}<div class="panel"><h2>Módulos e regras</h2><p class="hint">Ligue ou desligue partes e regras do aplicativo para todos os usuários.</p><div class="set-list">${MODULOS.map(m=>`<div class="set-row"><div class="set-i"><b>${m.nome}</b><small>${m.desc}</small></div><label class="switch"><input type="checkbox" data-chg="setModulo" data-k="${m.k}" ${Settings.on(m.k)?'checked':''} ${edit?'':'disabled'}><span class="track"></span><span>${Settings.on(m.k)?'Ligado':'Desligado'}</span></label></div>`).join('')}</div>${edit?'':'<p class="hint">Só o administrador altera.</p>'}</div>${window.vNomusAdmin?vNomusAdmin():''}${window.vServicesAdmin?vServicesAdmin():''}${window.vMaterialsAdmin?vMaterialsAdmin():''}`;
+  return `${note}<div class="panel"><h2>Módulos e regras</h2><p class="hint">Ligue ou desligue partes e regras do aplicativo para todos os usuários.</p><div class="set-list">${MODULOS.map(m=>`<div class="set-row"><div class="set-i"><b>${m.nome}</b><small>${m.desc}</small></div><label class="switch"><input type="checkbox" data-chg="setModulo" data-k="${m.k}" ${Settings.on(m.k)?'checked':''} ${edit?'':'disabled'}><span class="track"></span><span>${Settings.on(m.k)?'Ligado':'Desligado'}</span></label></div>`).join('')}</div>${edit?'':'<p class="hint">Só o administrador ou o gestor altera.</p>'}</div>${window.vNomusAdmin?vNomusAdmin():''}${window.vServicesAdmin?vServicesAdmin():''}${window.vMaterialsAdmin?vMaterialsAdmin():''}`;
 };
 Object.assign(MX.chg,{
   async setModulo(el){
