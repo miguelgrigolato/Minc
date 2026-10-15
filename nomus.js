@@ -14,6 +14,15 @@ const Nomus={
   async call(body){
     if(!CLOUD)throw new Error('A busca no Nomus só funciona com o aplicativo conectado à nuvem.');
     if(!navigator.onLine)throw new Error('Sem conexão com a internet.');
+    // 1º caminho: função do Netlify (Node/OpenSSL, aceita o TLS do servidor do Nomus). 2º: função do Supabase.
+    const {data:ss}=await SB.auth.getSession();const tok=ss?.session?.access_token;
+    if(!tok)throw new Error('Sessão expirada. Entre de novo no aplicativo.');
+    let res=null;
+    try{res=await fetch('/.netlify/functions/nomus',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+tok},body:JSON.stringify(body)})}catch{}
+    if(res){   // resposta da função do Netlify (JSON). Sem a função publicada, o Netlify devolve uma página 404 (HTML) e usamos o Supabase
+      let j=null;try{j=await res.clone().json()}catch{}
+      if(j){if(!res.ok||j.error)throw new Error(j.error||'Não foi possível consultar o Nomus agora.');return j}
+    }
     const r=await SB.functions.invoke('nomus',{body});
     if(r.error){let msg='Não foi possível consultar o Nomus agora.';try{const j=await r.error.context.json();if(j&&j.error)msg=j.error}catch{}throw new Error(msg)}
     if(r.data&&r.data.error)throw new Error(r.data.error);
@@ -57,7 +66,7 @@ Object.assign(MX.act,{
   },
   async nomusTeste(el){
     const o=document.getElementById('nm-teste');el.disabled=true;if(o)o.textContent='Consultando…';
-    try{const r=await Nomus.call({acao:'ping'});if(o)o.textContent=r&&r.ok?'Conexão com o Nomus funcionando.':'Resposta inesperada do Nomus.'}
+    try{const r=await Nomus.call({acao:'ping'});if(o)o.textContent=r&&r.ok?`Conexão com o Nomus funcionando${r.tls?' (TLS '+r.tls+')':''}.`:'Resposta inesperada do Nomus.'}
     catch(e){if(o)o.textContent=e.message}
     el.disabled=false;
   }

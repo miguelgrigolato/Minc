@@ -1,0 +1,14 @@
+# MINC ServiceHub — configuração do Netlify.
+# Site estático (a raiz é publicada como está) + função "nomus" (consulta ao Nomus, somente leitura).
+[build]
+  publish = "."
+
+[functions]
+  directory = "netlify/functions"
+
+# o código das funções não deve ser servido como arquivo estático
+[[redirects]]
+  from = "/netlify/*"
+  to = "/index.html"
+  status = 404
+  force = true

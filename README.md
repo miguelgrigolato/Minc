@@ -1,4 +1,4 @@
-# MINC ServiceHub (v5.22.0)
+# MINC ServiceHub (v5.23.0)
 
 App web (PWA) da engenharia de serviço da Indústrias Minc (antes "MINC Peritagem"): peritagem/D.E, RTS, painel de gestão, catálogos e integração com o Nomus. Sem build: arquivos estáticos
 (`index.html`, `app.js`, ...). Dados no Supabase (projeto `minc-peritagem`) com cópia local no aparelho.
@@ -10,6 +10,10 @@ App web (PWA) da engenharia de serviço da Indústrias Minc (antes "MINC Peritag
   desmontagem entrega à fábrica. O código do formulário fica em `catalogo.js` > `CHECKLIST.codigo` (ainda vazio).
 - **RTS (Relatório Técnico de Serviço)** — aba "RTS" no topo (`rts.js`), independente da peritagem. POS com providência,
   atividades padrão (`catalogo.js` > `RTS_BIBLIOTECA`), lista de materiais e PDF no layout R-MINC-060-RTS-PT.
+
+## v5.23.0 — Nomus pelo Netlify (caminho alternativo)
+- Função `netlify/functions/nomus.mjs` (Node/OpenSSL, aceita TLS antigo do servidor do Nomus); o app tenta ela primeiro e cai na função do Supabase se ela não existir.
+- Diagnóstico sem chave: `/.netlify/functions/nomus?diag=1`. Chave: variável `NOMUS_CHAVE` no Netlify (escopo Functions). `netlify.toml` define a pasta das funções.
 
 ## v5.22.0 — Manual por perfil
 - Ajuda e manual mostra só o que vale para quem está logado: Funcionário (Primeiros passos + Funcionário), Gestor (+ Gestor e Treinamento), Administrador (tudo).
