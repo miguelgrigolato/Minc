@@ -8,9 +8,9 @@
 //     Ações: invite (e-mail real, como antes) · create (usuário + senha) · setpassword · update · resend.
 // v3: perfil "gestor" (acesso a tudo, menos Administração de usuários). Só o administrador usa esta função.
 
-export const SITE_URL = 'https://minc-peritagem.netlify.app';
+export const SITE_URL = 'https://minc-servicehub.netlify.app';
 export const INTERNAL_DOMAIN = 'usuarios.minc.ind.br';
-export const ALLOWED_ORIGINS = [SITE_URL, 'http://localhost:8000', 'http://localhost:8765', 'http://127.0.0.1:8000'];
+export const ALLOWED_ORIGINS = [SITE_URL, 'https://minc-peritagem.netlify.app', 'http://localhost:8000', 'http://localhost:8765', 'http://127.0.0.1:8000'];
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 const USERNAME_RE = /^[a-z0-9][a-z0-9._-]{2,29}$/;
 const PASS_MIN = 8, PASS_MAX = 72;
