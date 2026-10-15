@@ -63,13 +63,16 @@ Object.assign(MX.act,{
       const sel=d.querySelector('#nm-item'),it=sel&&sel.value!==''?n.itens[+sel.value]:null;
       if(it)put('equipamento',it.produto?.descricao||it.produto?.codigo);
     }else if(n.tipo==='processo'){
-      put('process',n.codigo);
+      put('process','#'+n.id);
+      if(emp(r.pedido)){const m=String(n.codigo).match(/\bPD[\s.\-]*0*(\d+)/i);if(m)put('pedido','PD '+m[1].padStart(5,'0'))}
+      if(emp(r.ordem)){const m=String(n.codigo).match(/\bOS[\s.\-]*\d+[A-Z]?/i);if(m)put('ordem',m[0].replace(/[\s.\-]/g,'').toUpperCase())}
+      if(window.NP)NP.fetchOne(n.id);
     }else{
       put('ordem',n.codigo);
       if(emp(r.equipamento))put('equipamento',n.produto?.descricao||n.produto?.codigo);
     }
     changed(r);closeDialog(d);renderMain();
-    toast(n.tipo==='pedido'?'Pedido, cliente e equipamento preenchidos a partir do Nomus. Confira os dados.':n.tipo==='processo'?'Nº do processo preenchido a partir do Nomus. Confira.':'Ordem preenchida a partir do Nomus. Confira os dados.',{ms:5000});
+    toast(n.tipo==='pedido'?'Pedido, cliente e equipamento preenchidos a partir do Nomus. Confira os dados.':n.tipo==='processo'?'Processo, pedido e ordem preenchidos a partir do Nomus. Confira.':'Ordem preenchida a partir do Nomus. Confira os dados.',{ms:5000});
   },
   async nomusPick(el){
     const f=el.closest('form'),out=f.querySelector('#nm-out'),use=f.querySelector('#nm-use');
@@ -96,5 +99,5 @@ Object.assign(MX.sub,{
 });
 
 /* Administração > Configurações: teste da conexão */
-window.vNomusAdmin=()=>!Settings.on('nomus')?'':`<div class="panel"><h2>Integração com o Nomus</h2><p class="hint">Consulta de pedidos e ordens (somente leitura). A chave fica guardada no servidor, nunca no aplicativo.</p><div class="actions"><button type="button" class="btn" data-act="nomusTeste" ${CLOUD?'':'disabled'}>Testar conexão com o Nomus</button></div><p class="hint" id="nm-teste" aria-live="polite">${CLOUD?'':'Disponível só com o aplicativo conectado à nuvem.'}</p></div>`;
+window.vNomusAdmin=()=>!Settings.on('nomus')?'':`<div class="panel"><h2>Integração com o Nomus</h2><p class="hint">Consulta de pedidos e ordens (somente leitura). A chave fica guardada no servidor, nunca no aplicativo.</p><div class="actions"><button type="button" class="btn" data-act="nomusTeste" ${CLOUD?'':'disabled'}>Testar conexão com o Nomus</button></div><p class="hint" id="nm-teste" aria-live="polite">${CLOUD?'':'Disponível só com o aplicativo conectado à nuvem.'}</p></div>${window.vNpAdmin?vNpAdmin():''}`;
 })();

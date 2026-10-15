@@ -29,6 +29,7 @@ function compute(){
     if(mgr)cmp.filter(x=>x.status==='Pendente').forEach(x=>out.push({id:'cmp:'+x.id+':'+x.updated_at,kind:'cmp',cid:x.id,t:`Diferenças RTS ${x.data?.rts?.numero||''} × D.E para avaliar`,s:`${x.total} ${x.total===1?'diferença':'diferenças'} · enviado por ${x.created_by_name||'—'}`,at:x.updated_at}));
     cmp.filter(x=>x.status!=='Pendente'&&x.created_by_name===me()).forEach(x=>out.push({id:'cmpok:'+x.id+':'+x.status,kind:'cmp',cid:x.id,t:`Comparativo RTS ${x.data?.rts?.numero||''} × D.E avaliado: ${x.status}`,s:x.note||`Por ${x.evaluated_by_name||'—'}`,at:x.evaluated_at||x.updated_at,info:true}));
   }
+  if(window.NP)try{out.push(...NP.avisos())}catch(e){console.error(e)}
   return out.sort((a,b)=>new Date(b.at||0)-new Date(a.at||0));
 }
 const seen=()=>{try{return new Set(JSON.parse(localStorage.getItem(KEY+':'+(S.user?.id||'')))||[])}catch{return new Set()}};
@@ -72,6 +73,7 @@ Object.assign(MX.act,{
   avisoOpen(el){
     const {kind,id}=el.dataset,s=seen();compute().filter(a=>(a.rid||a.cid)===id).forEach(a=>s.add(a.id));saveSeen(s);
     closeDialog(el.closest('dialog'));refreshBell();
+    if(kind==='proc'){openProcess(id);return}
     if(kind==='rts'){MX.act.rtsOpen({dataset:{id}});return}
     if(kind==='cad'){MX.act.cadAbrir({dataset:{pid:''}});return}
     if(kind==='cmp'){if(typeof isManager==='function'&&isManager()){S.screen='panel';render();setTimeout(()=>MX.act.cmpView({dataset:{id}}),50)}else{const x=Cmp.list.find(c=>c.id===id);if(x)MX.act.rtsOpen({dataset:{id:x.rts_id}})}}

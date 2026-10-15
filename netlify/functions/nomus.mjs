@@ -2,7 +2,7 @@
 // Caminho alternativo à função do Supabase: o servidor do Nomus recusou o TLS do Supabase (Deno/rustls).
 // O Node usa OpenSSL, que aceita configurações TLS mais antigas quando pedimos (ver TLS_LEGACY).
 // Segredo: variável de ambiente NOMUS_CHAVE no Netlify (escopo Functions) — nunca no código.
-// Uso pelo app: POST /.netlify/functions/nomus  {acao:'ping'|'buscar', q}  com o token do usuário (Supabase).
+// Uso pelo app: POST /.netlify/functions/nomus  {acao:'ping'|'buscar'|'processo'|'processos'|'produtos', ...}  com o token do usuário (Supabase).
 // Diagnóstico sem login (não usa a chave): GET /.netlify/functions/nomus?diag=1
 import https from "node:https";
 import tls from "node:tls";
@@ -195,6 +195,48 @@ async function paginaProdutos(pagina) {
   return { itens, proxima: fim ? null : pg };
 }
 
+/* ---------- processo do CRM (nº "# 1173" = id do processo) ----------
+   Devolve etapa, responsável, prazo e, se o Nomus permitir, a lista de arquivos anexos. Tudo só leitura. */
+const dataBR = (t) => {
+  const m = String(t || "").match(/(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
+  if (!m) return null;
+  const y = +m[3] < 100 ? 2000 + +m[3] : +m[3];
+  return `${y}-${pad(m[2], 2)}-${pad(m[1], 2)}`;
+};
+function resumoProcesso(x) {
+  const bruto = {};
+  for (const [k, v] of Object.entries(x || {})) if (v !== null && v !== undefined && typeof v !== "object") bruto[k] = String(v).slice(0, 300);
+  const kEnt = Object.keys(bruto).find((k) => /entrega/i.test(k) && dataBR(bruto[k]));
+  const prazoTxt = kEnt ? bruto[kEnt] : x.dataHoraProgramada;
+  return {
+    id: x.id, nome: x.nome || "", etapa: x.etapa || "", responsavel: x.responsavel || "", reportador: x.reportador || "", prioridade: x.prioridade || "",
+    tipo: x.tipo || "", origem: x.origem || "", criado: dataBR(x.dataCriacao), programada: dataBR(x.dataHoraProgramada), prazo: dataBR(prazoTxt), prazoCampo: kEnt || "dataHoraProgramada", bruto,
+  };
+}
+async function detalheProcesso(id, comAnexos) {
+  let x;
+  try { x = one(await nomus(`processos/${id}`)); } catch (e) { if (/respondeu 404/.test(e.message || "")) return null; throw e; }
+  if (!x || !x.id) return null;
+  const r = resumoProcesso(x);
+  if (comAnexos) {
+    r.anexos = null;
+    try {
+      const a = await nomus(`processos/${id}/arquivosAnexos`);
+      if (Array.isArray(a)) r.anexos = a.slice(0, 60).map((f) => ({ nome: String(f.nomeArquivo || f.nome || f.arquivo || f.name || "").slice(0, 200), tamanho: f.tamanho || f.tamanhoArquivo || "", por: f.enviadoPor || f.usuario || "", data: f.dataUpload || f.data || "" }));
+    } catch { /* o Nomus pode não oferecer esta consulta: o app avisa */ }
+  }
+  return r;
+}
+async function varios(ids) {
+  const ini = Date.now(), itens = {}, faltam = [];
+  for (const id of ids) {
+    if (Date.now() - ini > 8000) { faltam.push(id); continue; }
+    try { const r = await detalheProcesso(id, false); itens[id] = r ? (({ bruto, ...o }) => o)(r) : { id, naoAchou: true }; }
+    catch (e) { if (e.status === 429) { faltam.push(id); continue; } itens[id] = { id, erro: e.message }; }
+  }
+  return { itens, faltam };
+}
+
 /* só usuário ativo do app (admin, gestor ou operador) */
 async function usuario(auth) {
   if (!auth.startsWith("Bearer ")) return null;
@@ -225,6 +267,17 @@ export default async (req) => {
     if (body.acao === "produtos") {
       if (!["admin", "gestor"].includes(who.role)) return json(403, { error: "Só administrador ou gestor atualiza a lista pelo Nomus." });
       return json(200, await paginaProdutos(body.pagina));
+    }
+    if (body.acao === "processo") {
+      const id = parseInt(String(body.id).replace(/\D/g, ""), 10);
+      if (!id) return json(400, { error: "Informe o número do processo (ex.: 1173)." });
+      const r = await detalheProcesso(id, true);
+      if (!r) return json(404, { error: `Não encontrei o processo #${id} no Nomus.` });
+      return json(200, r);
+    }
+    if (body.acao === "processos") {
+      const ids = [...new Set((Array.isArray(body.ids) ? body.ids : []).map((v) => parseInt(String(v).replace(/\D/g, ""), 10)).filter(Boolean))].slice(0, 40);
+      return json(200, await varios(ids));
     }
     if (body.acao === "buscar") {
       const q = String(body.q || "");
