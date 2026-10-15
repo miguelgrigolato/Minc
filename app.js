@@ -2,7 +2,7 @@
 /* MINC · Peritagem — v5.9.0
    Organização: utilitários → Store (IndexedDB) → Fotos → Auth → Regras (validação) → Telas → Ações/eventos → Boot */
 
-const APP_VERSION='5.23.2';
+const APP_VERSION='5.24.0';
 /* v5.11.0: módulos novos ficam em modelos.js (banco de modelos de válvula + checklist de entrega) e rts.js (Relatório Técnico de Serviço).
    Eles se registram em window.MINC_EXT (act/chg/sub/inp/views) e são mesclados aqui antes do boot(). */
 const EXT=window.MINC_EXT=window.MINC_EXT||{};

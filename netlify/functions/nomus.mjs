@@ -46,15 +46,17 @@ function handshake(host, opts) {
 }
 
 let modo = null; // qual configuração de TLS funcionou (padrão ou legada)
-async function nomus(path, query, tries = 3) {
+async function nomus(path, query, tries = 3, pagina = 0) {
   // o Nomus usa RSQL: ?query=campo=valor; valores com espaço ou símbolos precisam de aspas. O "=" do filtro NÃO vai codificado.
   const enc = (q) => q.split(";").map((p) => {
     const i = p.search(/[=<>]/); if (i < 0) return encodeURIComponent(p);
     let j = i; while (j < p.length && /[=<>]/.test(p[j])) j++;
     const v = p.slice(j).replace(/^"|"$/g, "");
+    if (v.startsWith("#")) return p.slice(0, j) + encodeURIComponent(v.slice(1));   // número: sem aspas
     return p.slice(0, j) + encodeURIComponent(`"${v.replace(/"/g, "")}"`);
   }).join(";");
-  const url = `${BASE}/${path}${query ? `?query=${enc(query)}` : ""}`;
+  const qs = [query ? `query=${enc(query)}` : "", pagina > 1 ? `pagina=${pagina}` : ""].filter(Boolean).join("&");
+  const url = `${BASE}/${path}${qs ? "?" + qs : ""}`;
   const headers = { Authorization: `Basic ${CHAVE}`, "Content-Type": "application/json" };
   for (let i = 0; i < tries; i++) {
     let r;
@@ -74,17 +76,30 @@ async function nomus(path, query, tries = 3) {
   }
 }
 
-/* "pd 2292" -> "PD 002292" ; "OS.123"/"os000123" -> ordem */
-function classificar(q) {
-  const s = q.trim().toUpperCase();
-  let m = s.match(/^PD\s*[-.]?\s*0*(\d+)$/);
-  if (m) return { tipo: "pedido", variantes: [`PD ${m[1].padStart(6, "0")}`, s] };
-  m = s.match(/^OS\s*[-.]?\s*0*(\d+)$/);
-  if (m) return { tipo: "ordem", variantes: [`OS${m[1].padStart(6, "0")}`, `OS.${m[1]}`, `OS ${m[1].padStart(6, "0")}`, s] };
-  if (/^\d+$/.test(s)) return { tipo: "pedido", variantes: [`PD ${s.padStart(6, "0")}`] };
-  return null;
-}
+/* ---------- interpretação do que a pessoa digitou ----------
+   Aceita: PD307, PD00307, PD.307, PD 307, pd-307, "307" · OS307, OS.307, OS 000307 · PROC 307 / processo 307
+   e o curinga % (como no Nomus): PD%307, %307, OS%2025%, pd%0307% ... */
+const norm = (c) => String(c || "").toUpperCase().replace(/[\s.\-_]/g, "");
 const one = (x) => (Array.isArray(x) ? x[0] : x);
+function interpretar(q) {
+  const s = String(q || "").trim();
+  const m = s.match(/^(PEDIDO|PROCESSO|ORDEM|PROC|PD|OS)?[\s.\-_:#]*(.*)$/i);
+  const pre = (m[1] || "").toUpperCase();
+  const tipos = pre === "PD" || pre === "PEDIDO" ? ["pedido"] : pre === "OS" || pre === "ORDEM" ? ["ordem"] : pre === "PROC" || pre === "PROCESSO" ? ["processo"] : ["pedido", "ordem", "processo"];
+  const resto = (m[2] || "").trim();
+  if (!resto) return null;
+  if (resto.includes("%")) return { tipos, coringa: true, prefixo: pre === "PEDIDO" ? "PD" : pre === "ORDEM" ? "OS" : pre.startsWith("PROC") ? "" : pre, padrao: norm(resto).replace(/%+/g, "%") };
+  const dig = resto.replace(/[\s.\-_]/g, "");
+  if (!/^\d+$/.test(dig)) return null;
+  return { tipos, coringa: false, n: String(parseInt(dig, 10)), dig };
+}
+const pad = (n, k) => String(n).padStart(k, "0");
+const variantes = {
+  pedido: (n) => [...new Set([`PD ${pad(n, 6)}`, `PD${pad(n, 6)}`, `PD ${n}`, `PD.${n}`, `PD${n}`, `PD ${pad(n, 5)}`])],
+  ordem: (n) => [...new Set([`OS${pad(n, 6)}`, `OS.${n}`, `OS ${pad(n, 6)}`, `OS${n}`, `OS ${n}`, `OS.${pad(n, 6)}`])],
+};
+const rx = (padrao) => new RegExp("^" + padrao.split("%").map((x) => x.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join(".*") + "$", "i");
+
 async function dadosCliente(id) {
   if (!id) return null;
   try { const c = one(await nomus(`clientes/${id}`)); return c && { id: c.id, codigo: c.codigo, nome: c.nome, cnpj: c.cnpj || c.cpfCnpj || "", municipio: c.municipio || "", uf: c.siglaEstado || c.uf || "" }; }
@@ -94,30 +109,61 @@ async function dadosProduto(id) {
   try { const x = one(await nomus(`produtos/${id}`)); return { codigo: x?.codigo || "", descricao: x?.descricao || "" }; }
   catch { return { codigo: "", descricao: "" }; }
 }
-async function buscaPedido(variantes) {
-  for (const v of variantes) {
-    const l = await nomus("pedidos", `codigoPedido=${v}`);
-    if (Array.isArray(l) && l.length) {
-      const p = l[0];
-      const ids = [...new Set((p.itensPedido || []).map((i) => i.idProduto).filter(Boolean))];
-      const prods = Object.fromEntries(await Promise.all(ids.map(async (id) => [id, await dadosProduto(id)])));
-      return {
-        tipo: "pedido", codigo: p.codigoPedido, emissao: p.dataEmissao, id: p.id, cliente: await dadosCliente(p.idPessoaCliente),
-        itens: (p.itensPedido || []).map((i) => ({ item: i.item, quantidade: i.quantidade, entrega: i.dataEntrega, observacoes: i.observacoes || "", produto: prods[i.idProduto] || { codigo: "", descricao: "" } })),
-      };
-    }
+async function montaPedido(p) {
+  const ids = [...new Set((p.itensPedido || []).map((i) => i.idProduto).filter(Boolean))];
+  const prods = Object.fromEntries(await Promise.all(ids.map(async (id) => [id, await dadosProduto(id)])));
+  return {
+    tipo: "pedido", codigo: p.codigoPedido, emissao: p.dataEmissao, id: p.id, cliente: await dadosCliente(p.idPessoaCliente),
+    itens: (p.itensPedido || []).map((i) => ({ item: i.item, quantidade: i.quantidade, entrega: i.dataEntrega, observacoes: i.observacoes || "", produto: prods[i.idProduto] || { codigo: "", descricao: "" } })),
+  };
+}
+const montaOrdem = (o) => ({ tipo: "ordem", codigo: o.nome, id: o.id, status: o.status, quantidade: o.qtde, unidade: o.unidadeMedida, entrega: o.dataHoraEntrega, empresa: o.nomeEmpresa, produto: { codigo: o.codigoProduto, descricao: o.descricaoProduto } });
+const montaProcesso = (x) => ({ tipo: "processo", codigo: x.nome, id: x.id, etapa: x.etapa, responsavel: x.responsavel, prioridade: x.prioridade, criado: x.dataCriacao, origem: x.origem });
+const TIPOS = {
+  pedido: { rota: "pedidos", campo: "codigoPedido", cod: (p) => p.codigoPedido, monta: montaPedido, resumo: (p) => `emitido em ${String(p.dataEmissao || "").slice(0, 10)}` },
+  ordem: { rota: "ordens", campo: "nome", cod: (o) => o.nome, monta: async (o) => montaOrdem(o), resumo: (o) => `${o.descricaoProduto || ""} · ${o.status || ""}` },
+  processo: { rota: "processos", campo: "nome", cod: (x) => x.nome, monta: async (x) => montaProcesso(x), resumo: (x) => `${x.etapa || ""} · ${x.responsavel || ""}` },
+};
+
+/* procura exata por número (várias formas de escrever o código) */
+async function exato(tipo, n) {
+  const T = TIPOS[tipo];
+  if (tipo === "processo") {
+    for (const q of [`id=#${n}`, `nome=${n}`]) { try { const l = await nomus(T.rota, q); if (Array.isArray(l) && l.length) return l[0]; } catch (e) { if (e.status === 429) throw e; } }
+    return null;
   }
+  for (const v of variantes[tipo](n)) { const l = await nomus(T.rota, `${T.campo}=${v}`); if (Array.isArray(l) && l.length) return l[0]; }
   return null;
 }
-async function buscaOrdem(variantes) {
-  for (const v of variantes) {
-    const l = await nomus("ordens", `nome=${v}`);
-    if (Array.isArray(l) && l.length) {
-      const o = l[0];
-      return { tipo: "ordem", codigo: o.nome, id: o.id, status: o.status, quantidade: o.qtde, unidade: o.unidadeMedida, entrega: o.dataHoraEntrega, empresa: o.nomeEmpresa, produto: { codigo: o.codigoProduto, descricao: o.descricaoProduto } };
+/* curinga: tenta o filtro do próprio Nomus (com %) e, se não achar, varre as páginas mais recentes */
+async function curinga(tipo, padrao, prefixo) {
+  const T = TIPOS[tipo], R = rx(prefixo && !padrao.startsWith(prefixo) && tipo !== "processo" ? prefixo + (padrao.startsWith("%") ? "" : "%") + padrao : padrao);
+  const achados = new Map();
+  const tenta = (l) => { for (const o of l || []) { if (R.test(norm(T.cod(o)))) achados.set(o.id, o); } };
+  try { const ex = padrao.replace(/%+/g, "%"); const l = await nomus(T.rota, `${T.campo}=${(prefixo && tipo !== "processo" ? prefixo + " " : "") + ex.replace(/^(PD|OS)/, "")}`); tenta(Array.isArray(l) ? l : []); } catch (e) { if (e.status === 429) throw e; }
+  if (!achados.size) {
+    for (let pg = 1; pg <= 8 && achados.size < 20; pg++) {
+      const l = await nomus(T.rota, "", 3, pg);
+      if (!Array.isArray(l) || !l.length) break;
+      tenta(l);
     }
   }
-  return null;
+  return [...achados.values()].slice(0, 20);
+}
+async function buscar(q, tipoForcado, ehExato) {
+  const it = interpretar(q);
+  if (!it) throw { status: 400, message: "Digite o pedido (PD 307), a ordem (OS 307) ou o processo. Pode usar % para pular partes, ex.: PD%307." };
+  const tipos = tipoForcado ? [tipoForcado] : it.tipos;
+  if (!it.coringa || ehExato) {
+    const n = it.n || String(parseInt(String(q).replace(/\D/g, ""), 10));
+    for (const t of tipos) { const o = await exato(t, n); if (o) return await TIPOS[t].monta(o); }
+    return null;
+  }
+  const itens = [];
+  for (const t of tipos) for (const o of await curinga(t, it.padrao, it.prefixo)) itens.push({ tipo: t, codigo: TIPOS[t].cod(o), resumo: TIPOS[t].resumo(o), _o: o });
+  if (!itens.length) return null;
+  if (itens.length === 1) return await TIPOS[itens[0].tipo].monta(itens[0]._o);
+  return { tipo: "lista", itens: itens.slice(0, 25).map(({ _o, ...r }) => r), total: itens.length };
 }
 
 /* só usuário ativo do app (admin, gestor ou operador) */
@@ -148,10 +194,9 @@ export default async (req) => {
   try {
     if (body.acao === "ping") { const t = await nomus("pedidos", "codigoPedido=PD 000000"); return json(200, { ok: true, amostra: Array.isArray(t), tls: modo || "padrão" }); }
     if (body.acao === "buscar") {
-      const q = String(body.q || ""), c = classificar(q);
-      if (!c) return json(400, { error: "Digite o pedido (PD 002292) ou a ordem (OS000123)." });
-      const r = c.tipo === "pedido" ? await buscaPedido(c.variantes) : await buscaOrdem(c.variantes);
-      if (!r) return json(404, { error: `Não encontrei "${q.trim()}" no Nomus.` });
+      const q = String(body.q || "");
+      const r = await buscar(q, ["pedido", "ordem", "processo"].includes(body.tipo) ? body.tipo : null, !!body.exato);
+      if (!r) return json(404, { error: `Não encontrei "${q.trim()}" no Nomus. Tente com % (ex.: PD%${q.replace(/\D/g, "") || "307"}).` });
       return json(200, r);
     }
     return json(400, { error: "Ação inválida." });

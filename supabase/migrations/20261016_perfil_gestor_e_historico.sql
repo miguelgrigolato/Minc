@@ -66,23 +66,25 @@ language plpgsql security definer set search_path = ''
 as $$
 declare f text[] := '{}'; k text;
 begin
-  if new.process_no is distinct from old.process_no then f := f || 'process'; end if;
-  if new.pedido is distinct from old.pedido then f := f || 'pedido'; end if;
-  if new.ordem is distinct from old.ordem then f := f || 'ordem'; end if;
-  if new.equipamento is distinct from old.equipamento then f := f || 'equipamento'; end if;
-  if new.cliente is distinct from old.cliente then f := f || 'cliente'; end if;
-  if new.deleted_at is distinct from old.deleted_at then f := f || 'excluido'; end if;
+  if new.process_no is distinct from old.process_no then f := array_append(f, 'process'); end if;
+  if new.pedido is distinct from old.pedido then f := array_append(f, 'pedido'); end if;
+  if new.ordem is distinct from old.ordem then f := array_append(f, 'ordem'); end if;
+  if new.equipamento is distinct from old.equipamento then f := array_append(f, 'equipamento'); end if;
+  if new.cliente is distinct from old.cliente then f := array_append(f, 'cliente'); end if;
+  if new.deleted_at is distinct from old.deleted_at then f := array_append(f, 'excluido'); end if;
   for k in select coalesce(n.key, o.key) from jsonb_each(coalesce(new.data,'{}'::jsonb)) n
            full join jsonb_each(coalesce(old.data,'{}'::jsonb)) o on n.key = o.key
            where n.value is distinct from o.value
              and coalesce(n.key, o.key) not in ('updatedAt','updatedBy','createdAt','createdBy','id','process','pedido','ordem','equipamento','cliente','status','deletedAt') loop
-    f := f || k;
+    f := array_append(f, k);
   end loop;
   if array_length(f,1) is null and new.status is not distinct from old.status then return new; end if;
   insert into public.process_history (process_id, rev, changed_by, fields, status_from, status_to)
   values (new.id, new.rev, auth.uid(), f, case when new.status is distinct from old.status then old.status end,
           case when new.status is distinct from old.status then new.status end);
   return new;
+exception when others then
+  return new;   -- o histórico nunca pode impedir o salvamento do processo
 end $$;
 revoke execute on function public.log_process_change() from public, anon, authenticated;
 drop trigger if exists processes_history on public.processes;
