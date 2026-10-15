@@ -109,11 +109,23 @@ async function dadosProduto(id) {
   try { const x = one(await nomus(`produtos/${id}`)); return { codigo: x?.codigo || "", descricao: x?.descricao || "" }; }
   catch { return { codigo: "", descricao: "" }; }
 }
+/* processos do CRM ligados ao pedido: o nome do processo traz o código do pedido ("# 1173 - PD 00199 (OS…)…") */
+async function processosDoPedido(p) {
+  const cod = norm(p.codigoPedido), ach = new Map(), ini = Date.now();
+  if (!cod) return [];
+  const R = new RegExp(cod.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "(?!\\d)", "i");
+  const tenta = (l) => { for (const x of l || []) if (x && x.id && R.test(norm(x.nome))) ach.set(x.id, { id: x.id, nome: x.nome || "", etapa: x.etapa || "" }); };
+  try { const l = await nomus("processos", `nome=%${p.codigoPedido}%`); if (Array.isArray(l)) tenta(l); } catch (e) { if (e.status === 429) return []; }
+  for (let pg = 1; pg <= 4 && !ach.size && Date.now() - ini < 6000; pg++) {
+    try { const l = await nomus("processos", "", 3, pg); if (!Array.isArray(l) || !l.length) break; tenta(l); } catch { break; }
+  }
+  return [...ach.values()].slice(0, 6);
+}
 async function montaPedido(p) {
   const ids = [...new Set((p.itensPedido || []).map((i) => i.idProduto).filter(Boolean))];
   const prods = Object.fromEntries(await Promise.all(ids.map(async (id) => [id, await dadosProduto(id)])));
   return {
-    tipo: "pedido", codigo: p.codigoPedido, emissao: p.dataEmissao, id: p.id, cliente: await dadosCliente(p.idPessoaCliente),
+    tipo: "pedido", codigo: p.codigoPedido, emissao: p.dataEmissao, id: p.id, cliente: await dadosCliente(p.idPessoaCliente), processos: await processosDoPedido(p),
     itens: (p.itensPedido || []).map((i) => ({ item: i.item, quantidade: i.quantidade, entrega: i.dataEntrega, observacoes: i.observacoes || "", produto: prods[i.idProduto] || { codigo: "", descricao: "" } })),
   };
 }

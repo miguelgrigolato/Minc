@@ -43,7 +43,7 @@ function resultHTML(r){
   if(r.tipo==='processo')return `<div class="nm-res"><dl class="kv"><div><dt>Processo (Nomus)</dt><dd>${esc(r.codigo)} · nº ${esc(r.id)}</dd></div><div><dt>Etapa</dt><dd>${esc(r.etapa)||'—'}${r.responsavel?' · '+esc(r.responsavel):''}</dd></div></dl></div>`;
   if(r.tipo==='pedido'){
     const c=r.cliente||{};
-    return `<div class="nm-res"><dl class="kv"><div><dt>Pedido</dt><dd>${esc(r.codigo)}${r.emissao?` · emitido em ${esc(String(r.emissao).slice(0,10))}`:''}</dd></div><div><dt>Cliente</dt><dd>${esc(c.nome)||'—'}${c.cnpj?` · ${esc(c.cnpj)}`:''}</dd></div></dl><div class="field"><label for="nm-item">Equipamento (item do pedido)</label><select id="nm-item"><option value="">Não preencher o equipamento</option>${(r.itens||[]).map((i,k)=>`<option value="${k}" ${(r.itens.length===1)?'selected':''}>${esc(i.item)} — ${esc(i.produto?.descricao||i.produto?.codigo||'sem descrição')} (qtd. ${esc(i.quantidade)})</option>`).join('')}</select></div></div>`;
+    return `<div class="nm-res"><dl class="kv"><div><dt>Pedido</dt><dd>${esc(r.codigo)}${r.emissao?` · emitido em ${esc(String(r.emissao).slice(0,10))}`:''}</dd></div><div><dt>Cliente</dt><dd>${esc(c.nome)||'—'}${c.cnpj?` · ${esc(c.cnpj)}`:''}</dd></div></dl>${(r.processos||[]).length?`<div class="field"><label for="nm-proc">Processo do CRM</label><select id="nm-proc"><option value="">Não preencher o processo</option>${r.processos.map(x=>`<option value="${esc(x.id)}" ${r.processos.length===1?'selected':''}>#${esc(x.id)} — ${esc(String(x.nome).slice(0,70))}${x.etapa?' ('+esc(x.etapa)+')':''}</option>`).join('')}</select></div>`:`<p class="hint">Não achei no CRM um processo com o nome deste pedido. Preencha o campo Processo à mão (ex.: #1173) ou busque por “proc 1173”.</p>`}<div class="field"><label for="nm-item">Equipamento (item do pedido)</label><select id="nm-item"><option value="">Não preencher o equipamento</option>${(r.itens||[]).map((i,k)=>`<option value="${k}" ${(r.itens.length===1)?'selected':''}>${esc(i.item)} — ${esc(i.produto?.descricao||i.produto?.codigo||'sem descrição')} (qtd. ${esc(i.quantidade)})</option>`).join('')}</select></div></div>`;
   }
   return `<div class="nm-res"><dl class="kv"><div><dt>Ordem</dt><dd>${esc(r.codigo)}${r.status?` · ${esc(r.status)}`:''}</dd></div><div><dt>Produto</dt><dd>${esc(r.produto?.descricao||r.produto?.codigo)||'—'}</dd></div></dl></div>`;
 }
@@ -62,6 +62,8 @@ Object.assign(MX.act,{
       put('pedido',n.codigo);put('cliente',n.cliente?.nome);
       const sel=d.querySelector('#nm-item'),it=sel&&sel.value!==''?n.itens[+sel.value]:null;
       if(it)put('equipamento',it.produto?.descricao||it.produto?.codigo);
+      const ps=d.querySelector('#nm-proc'),pr=ps&&ps.value?(n.processos||[]).find(x=>String(x.id)===ps.value):null;
+      if(pr){put('process','#'+pr.id);if(emp(r.ordem)){const m=String(pr.nome).match(/\bOS[\s.\-]*\d+[A-Z]?/i);if(m)put('ordem',m[0].replace(/[\s.\-]/g,'').toUpperCase())}if(window.NP)NP.fetchOne(pr.id)}
     }else if(n.tipo==='processo'){
       put('process','#'+n.id);
       if(emp(r.pedido)){const m=String(n.codigo).match(/\bPD[\s.\-]*0*(\d+)/i);if(m)put('pedido','PD '+m[1].padStart(5,'0'))}
