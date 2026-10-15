@@ -75,6 +75,8 @@ const NP={
     try{const r=await SB.from('app_settings').select('value').eq('key',URLKEY);this.tpl=(r.data&&r.data[0]&&r.data[0].value&&r.data[0].value.tpl)||'';try{localStorage.setItem(URLKEY,this.tpl)}catch{}}
     catch{try{this.tpl=localStorage.getItem(URLKEY)||''}catch{this.tpl=''}}
   },
+  /* copia o nº do processo para colar na busca do CRM */
+  copia(id){if(!id)return false;try{navigator.clipboard.writeText(String(id));return true}catch{return false}},
   url(id){const t=(this.tpl??(()=>{try{return localStorage.getItem(URLKEY)}catch{return ''}})())||'';return t&&/\{id\}/.test(t)&&id?t.replace(/\{id\}/g,id):BASE_URL},
   temUrl(){const t=this.tpl??(()=>{try{return localStorage.getItem(URLKEY)}catch{return ''}})();return !!(t&&/\{id\}/.test(t))}
 };
@@ -173,10 +175,11 @@ Object.assign(MX.act,{
     if(idv)NP.lastId=idv;
     saveBytes(L.bytes,name);
     window.open(NP.url(idv),'_blank','noopener');
-    toast('Arquivo baixado. No Nomus: Arquivos anexos › Anexar arquivo.',{ms:9000});
+    const cp=NP.copia(idv);
+    toast(`Arquivo baixado.${cp?` Número ${idv} copiado: cole na busca do CRM.`:''} No processo: Arquivos anexos › Anexar arquivo.`,{ms:10000});
     closeDialog(d);
   },
-  npAbrir(el){window.open(NP.url(+el.dataset.id||null),'_blank','noopener')},
+  npAbrir(el){const id=+el.dataset.id||null;window.open(NP.url(id),'_blank','noopener');if(!NP.temUrl()&&NP.copia(id))toast(`Número ${id} copiado: cole na busca do CRM.`,{ms:6000})},
   async npRefresh(el){
     const r=cur();if(!r)return;const id=NP.idOf(r);if(!id)return;
     el.disabled=true;const b=document.getElementById('np-box');if(b)b.querySelectorAll('.btn').forEach(x=>x.disabled=true);
