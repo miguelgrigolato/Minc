@@ -47,6 +47,7 @@ App web (PWA) da engenharia de serviço da Indústrias Minc (antes "MINC Peritag
 - **Busca em tudo** (lupa na barra superior, todos): processos, componentes/materiais, RTS, modelos e lista do Nomus, com `%`.
 - **Envio para a nuvem**: tocar em "N pendentes" mostra o que ainda não foi enviado e permite enviar agora.
 - Modelos editáveis em Word dos formulários (DEP, RTS e checklist) em `docs/modelos-formularios/`.
+- Modelo em Excel da Solicitação de cadastro de produto (Nomus) em `docs/modelos-formularios/`; o botão "Excel da solicitação" do app gera a planilha neste layout.
 
 ## v5.17.1 — Consulta ao Nomus (somente leitura) — DESLIGADA por padrão (Configurações > "Busca no Nomus"); servidor do Nomus ainda recusa o TLS do Supabase
 - No processo (Identificação): **Buscar no Nomus** — `PD 002292` (pedido) ou `OS000123` (ordem) — preenche pedido, cliente, equipamento e ordem (`nomus.js`).

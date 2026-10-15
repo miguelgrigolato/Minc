@@ -202,12 +202,28 @@ Object.assign(MX.act,{
     if(!window.XLSX){toast('A biblioteca de Excel ainda não carregou. Tente de novo.');return}
     const {com,outros}=Fich.cadRows(r);
     if(!com.length&&!outros.length){toast('Este processo não tem itens na Lista de cadastro.');return}
-    const proc=r.process||'',cab=['Família','Descrição','Ficha','Unidade','Quantidade','Observação','Item da estrutura','Processo','Pedido','Cliente'];
-    const linha=(fam,x)=>[fam,x.desc||'',x.ficha||'',x.un||'',x.qty??'',x.obs||'',`${x.no||''} ${x.comp||''}`.trim(),proc,r.pedido||'',r.cliente||''];
-    const rows=[...com.map(x=>linha(x.familia,x)),...outros.map(x=>linha(x.tipo||'',x))];
-    const ws=XLSX.utils.aoa_to_sheet([cab,...rows]);ws['!cols']=[18,46,46,8,10,28,26,12,14,28].map(wch=>({wch}));
+    const proc=r.process||'',id=NP.idOf(r),N=13;
+    const cab=['Nº','Família','Descrição (padrão do cadastro)','Ficha (características)','Unid.','Qtd. necessária','Observação do perito','Item da estrutura','Código no Nomus','Cadastrado por','Data do cadastro','Situação','Observação da engenharia'];
+    const itens=[...com.map(x=>[x.familia,x]),...outros.map(x=>[x.tipo||'',x])];
+    const hoje=new Date().toLocaleDateString('pt-BR');
+    const blank=()=>Array(N).fill('');
+    const A=[blank(),blank(),blank(),blank(),blank(),blank(),blank(),blank(),blank(),blank()];
+    A[0][0]='SOLICITAÇÃO DE CADASTRO DE PRODUTO — NOMUS';
+    A[1][0]='Formulário: código a definir · Rev. 00 · MINC ServiceHub — peritagem / engenharia de serviço';
+    const par=(row,l1,v1,l2,v2)=>{A[row][0]=l1;A[row][2]=v1;A[row][5]=l2;A[row][7]=v2};
+    par(3,'Processo (Nomus)',proc||(id?'#'+id:''),'Pedido',r.pedido||'');
+    par(4,'Ordem',r.ordem||'','Equipamento',r.equipamento||'');
+    par(5,'Cliente',r.cliente||'','Solicitante',S.user?.name||'');
+    par(6,'Data da solicitação',hoje,'Observação geral',r.observacoes||'');
+    A[8][0]='Preenchido pelo perito / engenharia de serviço';A[8][8]='Preenchido pela engenharia / cadastro (Nomus)';
+    A[9]=cab;
+    itens.forEach(([fam,x],i)=>A.push([i+1,fam,x.desc||'',x.ficha||'',x.un||'',x.qty??'',x.obs||'',`${x.no||''} ${x.comp||''}`.trim(),'','','','Pendente','']));
+    const ws=XLSX.utils.aoa_to_sheet(A);
+    const M=(r1,c1,r2,c2)=>({s:{r:r1,c:c1},e:{r:r2,c:c2}});
+    ws['!merges']=[M(0,0,0,N-1),M(1,0,1,N-1),M(8,0,8,7),M(8,8,8,N-1),...[3,4,5,6].flatMap(k=>[M(k,0,k,1),M(k,2,k,4),M(k,5,k,6),M(k,7,k,N-1)])];
+    ws['!cols']=[5,16,46,40,7,10,26,24,16,16,13,13,28].map(wch=>({wch}));
     const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Solicitação de cadastro');
-    XLSX.writeFile(wb,limpa(`SOLICITACAO DE CADASTRO - NOMUS - # ${NP.idOf(r)||proc||''} ${r.pedido||''} ${r.equipamento||''}`,120)+'.xlsx');
+    XLSX.writeFile(wb,limpa(`SOLICITACAO DE CADASTRO - NOMUS - # ${id||proc||''} ${r.pedido||''} ${r.equipamento||''}`,120)+'.xlsx');
     toast('Planilha da solicitação de cadastro gerada.');
   }
 });
