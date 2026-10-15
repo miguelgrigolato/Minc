@@ -2,7 +2,7 @@
 /* MINC · Peritagem — v5.9.0
    Organização: utilitários → Store (IndexedDB) → Fotos → Auth → Regras (validação) → Telas → Ações/eventos → Boot */
 
-const APP_VERSION='5.20.0';
+const APP_VERSION='5.21.0';
 /* v5.11.0: módulos novos ficam em modelos.js (banco de modelos de válvula + checklist de entrega) e rts.js (Relatório Técnico de Serviço).
    Eles se registram em window.MINC_EXT (act/chg/sub/inp/views) e são mesclados aqui antes do boot(). */
 const EXT=window.MINC_EXT=window.MINC_EXT||{};
@@ -37,6 +37,7 @@ const IC={
   logout:'<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/>',
   save:'<path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z"/><path d="M17 21v-8H7v8M7 3v5h8"/>',
   up:'<path d="m18 15-6-6-6 6"/>',
+  bell:'<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>',help:'<circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3"/><path d="M12 17h.01"/>',
   clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',refresh:'<path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/>',
   doc:'<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/>'
 };
@@ -444,7 +445,7 @@ function topNav(){
 }
 function shell(inner){
   const dark=document.documentElement.dataset.theme==='dark',sv=Sync.view();
-  return `<div class="app"><header class="topbar no-print"><button class="brand" data-act="home" aria-label="MINC ServiceHub: ir para a tela inicial" title="Ir para a tela inicial"><span class="wm-b">MINC</span><span class="brand-sub">ServiceHub</span></button>${topNav()}<div class="bar-r"><button class="pill" id="syncpill" data-s="${sv.s}" data-act="syncPill" title="Sincronização com a nuvem"><i></i><span>${sv.t}</span></button><span class="pill" id="savestate" data-s="${Saver.state}"><i></i><span>${SAVE_TXT[Saver.state]}</span></span><button class="iconbtn" data-act="gSearch" aria-label="Buscar em tudo" title="Buscar em tudo">${ic('search')}</button><button class="iconbtn" data-act="theme" aria-label="${dark?'Usar tema claro':'Usar tema escuro'}">${ic(dark?'sun':'moon')}</button><button class="userchip" data-act="userMenu" title="${esc(S.user?.name)}"><span>${esc(S.user?.name)}</span></button><button class="iconbtn" data-act="logout" aria-label="Sair">${ic('logout')}</button></div></header><main class="container" id="main">${inner}</main></div>`;
+  return `<div class="app"><header class="topbar no-print"><button class="brand" data-act="home" aria-label="MINC ServiceHub: ir para a tela inicial" title="Ir para a tela inicial"><span class="wm-b">MINC</span><span class="brand-sub">ServiceHub</span></button>${topNav()}<div class="bar-r"><button class="pill" id="syncpill" data-s="${sv.s}" data-act="syncPill" title="Sincronização com a nuvem"><i></i><span>${sv.t}</span></button><span class="pill" id="savestate" data-s="${Saver.state}"><i></i><span>${SAVE_TXT[Saver.state]}</span></span>${window.bellBtn?bellBtn():''}<button class="iconbtn" data-act="gSearch" aria-label="Buscar em tudo" title="Buscar em tudo">${ic('search')}</button><button class="iconbtn" data-act="theme" aria-label="${dark?'Usar tema claro':'Usar tema escuro'}">${ic(dark?'sun':'moon')}</button><button class="userchip" data-act="userMenu" title="${esc(S.user?.name)}"><span>${esc(S.user?.name)}</span></button><button class="iconbtn" data-act="logout" aria-label="Sair">${ic('logout')}</button></div></header>${window.offlineBar?offlineBar():''}<main class="container" id="main">${inner}</main></div>`;
 }
 function view(){
   switch(S.screen){
@@ -1660,7 +1661,7 @@ const ACT={
   /* conta e administração */
   userMenu(){
     const u=S.user;
-    dialog(`<div class="dlg-body"><h2>${esc(u.name)}</h2><p>${esc(u.role)} — usuário ${esc(u.login)}</p><div class="stack"><button class="btn" data-act="chPw">Alterar senha</button>${isManager()?`<button class="btn" data-act="adminGo">${isAdminUser()?'Administração (usuários e catálogos)':'Administração (catálogos e modelos)'}</button>`:''}<button class="btn" data-act="closeDlg">Fechar</button></div><p class="hint">Versão ${APP_VERSION}</p></div>`);
+    dialog(`<div class="dlg-body"><h2>${esc(u.name)}</h2><p>${esc(u.role)} — usuário ${esc(u.login)}</p><div class="stack"><button class="btn" data-act="helpOpen">${ic('help')}Ajuda e manual</button><button class="btn" data-act="chPw">Alterar senha</button>${isManager()?`<button class="btn" data-act="adminGo">${isAdminUser()?'Administração (usuários e catálogos)':'Administração (catálogos e modelos)'}</button>`:''}<button class="btn" data-act="closeDlg">Fechar</button></div><p class="hint">Versão ${APP_VERSION}</p></div>`);
   },
   chPw(el){el.closest('dialog')?.close();pwDialog(false)},
   adminGo(el){if(!isManager())return;el.closest('dialog')?.close();ACT.home();S.screen='admin';S.adminTab=isAdminUser()?'users':'catalog';render();if(CLOUD&&isAdminUser())loadAdmin()},

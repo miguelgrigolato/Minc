@@ -173,9 +173,9 @@ MX.act.newProcessModel=function(el){
 /* ============================== Checklist de entrega (PDF) ============================== */
 function ckFileName(r,when=new Date()){
   const d=when.toISOString().slice(0,10);
-  return ['CHECKLIST-ENTREGA',slug(r.process)||'SEM-PROCESSO',slug(r.pedido)||'SEM-PEDIDO',slug(r.equipamento)||'EQUIPAMENTO',d].join('_')+'.pdf';
+  return ['CHECKLIST-IRS',slug(r.process)||'SEM-PROCESSO',slug(r.pedido)||'SEM-PEDIDO',slug(r.equipamento)||'EQUIPAMENTO',d].join('_')+'.pdf';
 }
-window.buildChecklistPdf=async function(r){
+window.buildChecklistPdf=async function(r,{todos=false}={}){
   await pdfLib();
   const F=CK(),{jsPDF}=window.jspdf,doc=new jsPDF({unit:'mm',format:'a4',compress:true}),M=12,W=210-2*M;
   const logo=await logoForPdf();
@@ -191,8 +191,8 @@ window.buildChecklistPdf=async function(r){
       if(!(w>0)||!(h>0))return;
       try{doc.addImage(logo.url,'PNG',data.cell.x+(data.cell.width-w)/2,data.cell.y+(data.cell.height-h)/2,w,h)}catch(e){console.error('logo no PDF',e)}
     }});
-  const items=treeList(r);
-  doc.autoTable({...grid,startY:doc.lastAutoTable.finalY+3,body:[[H('Equipamento'),{content:V(r.equipamento),colSpan:3}],[H('Cliente'),{content:V(r.cliente),colSpan:3}],[H('Processo'),V(r.process),H('Pedido / Ordem'),pdfTxt((r.pedido||'-')+' / '+(r.ordem||'-'))],[H('Peritagem Nomus'),V(r.nomus),H('Projeto (modelo)'),V(r.modeloNome)],[H('Data da entrega'),'____ / ____ / ________',H('Total de itens'),String(items.length)]],columnStyles:{0:{cellWidth:34},2:{cellWidth:34}}});
+  const all=treeList(r),items=todos?all:all.filter(({c})=>(c.acoes||[]).includes('Reutilizar'));
+  doc.autoTable({...grid,startY:doc.lastAutoTable.finalY+3,body:[[H('Equipamento'),{content:V(r.equipamento),colSpan:3}],[H('Cliente'),{content:V(r.cliente),colSpan:3}],[H('Processo'),V(r.process),H('Pedido / Ordem'),pdfTxt((r.pedido||'-')+' / '+(r.ordem||'-'))],[H('Peritagem Nomus'),V(r.nomus),H('Projeto (modelo)'),V(r.modeloNome)],[H('Data da entrega'),'____ / ____ / ________',H(todos?'Total de itens':'Itens reutilizados'),String(items.length)+(todos?'':` de ${all.length}`)]],columnStyles:{0:{cellWidth:34},2:{cellWidth:34}}});
   /* lista de peças: cada linha com duas caixas (entregue pela desmontagem / recebido pela fábrica) */
   const box={halign:'center',minCellHeight:8};
   const body=items.map(({c,no,lvl})=>[String(no),pdfTxt(('- '.repeat(Math.min(lvl,3)))+(c.name||'-')),pdfTxt(emp(c.qtd)?'-':c.qtd+(c.unid&&c.unid!=='un'?' '+c.unid:'')),pdfTxt(c.acoes.length?c.acoes.join(' / '):'-'),'','',''],);
@@ -217,7 +217,7 @@ window.buildChecklistPdf=async function(r){
   for(let i=1;i<=n;i++){
     doc.setPage(i);doc.setDrawColor(150);doc.setLineWidth(.2);doc.line(M,284,210-M,284);doc.setTextColor(90);doc.setFontSize(7);
     doc.setFont('helvetica','normal');doc.text(`Emitido por: ${who}  |  ${stamp}`,M,289);
-    doc.text(pdfTxt(`${F.titulo}  |  Processo ${r.process||'-'}`),118,289,{align:'center'});
+    doc.text(pdfTxt(`${F.codigo||'-'}  Rev. ${F.rev||'-'}  |  Processo ${r.process||'-'}`),118,289,{align:'center'});
     doc.setFont('helvetica','bold');doc.text(`Página ${i} de ${n}`,210-M,289,{align:'right'});
   }
   return{bytes:doc.output('arraybuffer'),pages:n,fileName:ckFileName(r)};
@@ -227,12 +227,14 @@ MX.act.checklistPdf=async function(el){
   try{
     const r=cur();if(!r)return;
     if(!r.components.length){toast('Este processo ainda não tem componentes.');return}
-    const out=await buildChecklistPdf(r);saveBytes(out.bytes,out.fileName);toast('Checklist de entrega gerado.');
+    const todos=document.getElementById('ck-todos')?.checked;
+    if(!todos&&!r.components.some(c=>(c.acoes||[]).includes('Reutilizar'))){toast('Nenhum componente com providência “Reutilizar”. Marque “Incluir todos os componentes” para gerar mesmo assim.',{ms:6000});return}
+    const out=await buildChecklistPdf(r,{todos});saveBytes(out.bytes,out.fileName);toast('Checklist gerado.');
   }catch(e){console.error(e);toast('Não foi possível gerar o checklist.')}
   finally{b?.removeAttribute?.('aria-busy')}
 };
 window.checklistPanel=function(r){
-  const n=r.components.length;
-  return `<div class="panel no-print"><div class="ph-row"><div><h2>Checklist de entrega</h2><p class="hint" style="margin:0">Lista de conferência com as ${plural(n,'peça','peças')} que a desmontagem entrega à fábrica (uma linha por componente, com caixa de entrega e de recebimento e campos de assinatura). Gere depois de fechar o DEP.</p></div><button class="btn primary" data-act="checklistPdf" ${n?'':'disabled'}>${ic('download')}Gerar checklist (PDF)</button></div></div>`;
+  const n=r.components.length,nr=r.components.filter(c=>(c.acoes||[]).includes('Reutilizar')).length,F=CK();
+  return `<div class="panel no-print"><div class="ph-row"><div><h2>Checklist de verificação de itens reutilizados</h2><p class="hint" style="margin:0">${esc(F.codigo)} — conferência de ${plural(nr,'peça reutilizada','peças reutilizadas')} (de ${plural(n,'componente','componentes')}) que a desmontagem entrega à fábrica, com caixas de entrega e recebimento e assinaturas. Gere depois de fechar o DEP.</p><label class="switch" style="margin-top:6px"><input type="checkbox" id="ck-todos"><span class="track"></span><span>Incluir todos os componentes</span></label></div><button class="btn primary" data-act="checklistPdf" ${n?'':'disabled'}>${ic('download')}Gerar checklist (PDF)</button></div></div>`;
 };
 })();

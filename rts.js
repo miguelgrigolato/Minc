@@ -526,7 +526,7 @@ Object.assign(MX.sub,{
   rtsReturn(f){
     const r=curR();if(!r||!isAdminU())return;
     const m=f.elements.motivo.value.trim();if(!m){toast('Descreva o ajuste necessário.');return}
-    r.status=S_RAS;clearApproval(r);r.motivoDevolucao=m;r.devolvidoPor=S.user?.name||'';
+    r.status=S_RAS;clearApproval(r);r.motivoDevolucao=m;r.devolvidoPor=S.user?.name||'';r.devolucoes=(+r.devolucoes||0)+1;   // contador para o painel de gestão
     touchR(r);closeDialog(f.closest('dialog'));renderMain();toast('RTS devolvido para ajustes.');
   }
 });

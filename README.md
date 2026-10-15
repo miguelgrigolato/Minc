@@ -1,4 +1,4 @@
-# MINC ServiceHub (v5.20.0)
+# MINC ServiceHub (v5.21.0)
 
 App web (PWA) da engenharia de serviço da Indústrias Minc (antes "MINC Peritagem"): peritagem/D.E, RTS, painel de gestão, catálogos e integração com o Nomus. Sem build: arquivos estáticos
 (`index.html`, `app.js`, ...). Dados no Supabase (projeto `minc-peritagem`) com cópia local no aparelho.
@@ -10,6 +10,13 @@ App web (PWA) da engenharia de serviço da Indústrias Minc (antes "MINC Peritag
   desmontagem entrega à fábrica. O código do formulário fica em `catalogo.js` > `CHECKLIST.codigo` (ainda vazio).
 - **RTS (Relatório Técnico de Serviço)** — aba "RTS" no topo (`rts.js`), independente da peritagem. POS com providência,
   atividades padrão (`catalogo.js` > `RTS_BIBLIOTECA`), lista de materiais e PDF no layout R-MINC-060-RTS-PT.
+
+## v5.21.0 — Qualidade e acabamento
+- **Checklist R-MINC-078-IRS-PT** (Checklist de verificação de itens reutilizados para serviço, Rev. 00): lista os componentes com providência "Reutilizar" (opção de incluir todos). Modelo Word atualizado em `docs/modelos-formularios/`.
+- **Painel de gestão completo** (`painel.js`): período (30 dias a tudo), indicadores, processos por mês (criados × concluídos), tempo médio por etapa (histórico de status), providências, componentes / serviços / matérias-primas mais frequentes, produtividade por pessoa, RTS (aprovação, devoluções) e comparativos; todo gráfico com dica e "Ver tabela"; exportação para Excel.
+- **Avisos** (`avisos.js`): sino na barra — RTS para aprovar, RTS aprovado/devolvido, comparativos para avaliar/avaliados; avisos do sistema quando a pessoa permitir.
+- **Sem internet**: faixa fixa, pedido de armazenamento protegido ao navegador, situação do armazenamento no detalhe de envio e alerta ao fechar com pendências.
+- **Ajuda e manual** (`ajuda.js`, menu do usuário) por perfil + roteiro de treinamento; versões Word em `docs/manual/`.
 
 ## v5.19.0 — Comparativo RTS × D.E
 - No RTS (editor), painel **Vínculo com a D.E**: escolha o processo da peritagem. O app compara RTS e D.E (cabeçalho, POS/componentes, providências, quantidades e materiais; casa por nº da POS e, na falta dele, pelo nome) e envia o relatório de diferenças ao **Painel de gestão**.

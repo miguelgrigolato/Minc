@@ -48,14 +48,14 @@ window.MINC_CATALOGO = {
   /* Itens que se repetem nos documentos (atalho "Itens comuns" na aba Componentes) */
   ITENS_COMUNS: ['Montagem final', 'Pintura', 'Elementos de fixação', 'Elementos de vedação', 'Sistema de lubrificação'],
 
-  /* ---------- Checklist de entrega (desmontagem -> fábrica), gerado a partir do DEP ----------
-     CONFIRMAR: o código do formulário ainda não foi definido pela Qualidade. Enquanto estiver vazio, o PDF mostra "-". */
+  /* ---------- Checklist de verificação de itens reutilizados (desmontagem -> fábrica), gerado a partir do DEP ----------
+     Código definido pela Qualidade: R-MINC-078-IRS-PT, Rev. 00. Para uma nova revisão, troque rev e data aqui. */
   CHECKLIST: {
-    titulo: 'CHECKLIST DE ENTREGA DA DESMONTAGEM',
+    titulo: 'CHECKLIST DE VERIFICAÇÃO DE ITENS REUTILIZADOS PARA SERVIÇO',
     tipo: 'REGISTRO',
-    codigo: '',
+    codigo: 'R-MINC-078-IRS-PT',
     rev: '00',
-    data: '2026-10-13'
+    data: '2026-10-16'
   },
 
   /* ---------- RTS — Relatório Técnico de Serviço (módulo RTS) ----------
