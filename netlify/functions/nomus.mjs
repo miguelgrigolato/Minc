@@ -47,7 +47,9 @@ function handshake(host, opts) {
 
 let modo = null; // qual configuração de TLS funcionou (padrão ou legada)
 async function nomus(path, query, tries = 3) {
-  const url = `${BASE}/${path}${query ? `?query=${encodeURIComponent(query)}` : ""}`;
+  // o Nomus espera ?query=campo=valor (o "=" do filtro NÃO pode ir codificado); só o valor é codificado
+  const enc = (q) => q.split(";").map((p) => { const i = p.search(/[=<>]/); return i < 0 ? encodeURIComponent(p) : p.slice(0, i + 1) + encodeURIComponent(p.slice(i + 1)); }).join(";");
+  const url = `${BASE}/${path}${query ? `?query=${enc(query)}` : ""}`;
   const headers = { Authorization: `Basic ${CHAVE}`, "Content-Type": "application/json" };
   for (let i = 0; i < tries; i++) {
     let r;
@@ -62,7 +64,7 @@ async function nomus(path, query, tries = 3) {
       throw { status: 429, message: `Nomus pediu para aguardar ${j.tempoAteLiberar}s. Tente de novo.` };
     }
     if (r.status === 401 || r.status === 403) throw { status: 502, message: "O Nomus recusou a chave de integração." };
-    if (r.status >= 400) throw { status: 502, message: `Nomus respondeu ${r.status}.` };
+    if (r.status >= 400) throw { status: 502, message: `Nomus respondeu ${r.status}${r.body ? ": " + String(r.body).replace(/\s+/g, " ").slice(0, 220) : ""} (consulta: ${path}${query ? "?query=" + query : ""})` };
     return j;
   }
 }
