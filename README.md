@@ -1,4 +1,4 @@
-# MINC ServiceHub (v5.21.0)
+# MINC ServiceHub (v5.22.0)
 
 App web (PWA) da engenharia de serviço da Indústrias Minc (antes "MINC Peritagem"): peritagem/D.E, RTS, painel de gestão, catálogos e integração com o Nomus. Sem build: arquivos estáticos
 (`index.html`, `app.js`, ...). Dados no Supabase (projeto `minc-peritagem`) com cópia local no aparelho.
@@ -10,6 +10,11 @@ App web (PWA) da engenharia de serviço da Indústrias Minc (antes "MINC Peritag
   desmontagem entrega à fábrica. O código do formulário fica em `catalogo.js` > `CHECKLIST.codigo` (ainda vazio).
 - **RTS (Relatório Técnico de Serviço)** — aba "RTS" no topo (`rts.js`), independente da peritagem. POS com providência,
   atividades padrão (`catalogo.js` > `RTS_BIBLIOTECA`), lista de materiais e PDF no layout R-MINC-060-RTS-PT.
+
+## v5.22.0 — Manual por perfil
+- Ajuda e manual mostra só o que vale para quem está logado: Funcionário (Primeiros passos + Funcionário), Gestor (+ Gestor e Treinamento), Administrador (tudo).
+- Manual detalhado: cada tela e etapa da D.E, com tabela "botão / para que serve"; RTS, painel, aprovações, comparativos, catálogos e usuários.
+- Manuais em Word por perfil em `docs/manual/` (gerados do mesmo conteúdo de `ajuda.js`).
 
 ## v5.21.0 — Qualidade e acabamento
 - **Checklist R-MINC-078-IRS-PT** (Checklist de verificação de itens reutilizados para serviço, Rev. 00): lista os componentes com providência "Reutilizar" (opção de incluir todos). Modelo Word atualizado em `docs/modelos-formularios/`.
