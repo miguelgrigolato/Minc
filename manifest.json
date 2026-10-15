@@ -1,8 +1,8 @@
 {
   "id": "minc-peritagem",
-  "name": "MINC Peritagem",
-  "short_name": "Peritagem",
-  "description": "Peritagem, recuperação e reutilização de equipamentos industriais.",
+  "name": "MINC ServiceHub",
+  "short_name": "ServiceHub",
+  "description": "Peritagem, RTS e gestão da engenharia de serviço da MINC.",
   "lang": "pt-BR",
   "start_url": "./index.html",
   "scope": "./",

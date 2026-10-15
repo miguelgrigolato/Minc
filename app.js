@@ -2,7 +2,7 @@
 /* MINC · Peritagem — v5.9.0
    Organização: utilitários → Store (IndexedDB) → Fotos → Auth → Regras (validação) → Telas → Ações/eventos → Boot */
 
-const APP_VERSION='5.19.0';
+const APP_VERSION='5.20.0';
 /* v5.11.0: módulos novos ficam em modelos.js (banco de modelos de válvula + checklist de entrega) e rts.js (Relatório Técnico de Serviço).
    Eles se registram em window.MINC_EXT (act/chg/sub/inp/views) e são mesclados aqui antes do boot(). */
 const EXT=window.MINC_EXT=window.MINC_EXT||{};
@@ -444,7 +444,7 @@ function topNav(){
 }
 function shell(inner){
   const dark=document.documentElement.dataset.theme==='dark',sv=Sync.view();
-  return `<div class="app"><header class="topbar no-print"><button class="brand" data-act="home" aria-label="MINC Peritagem: ir para a tela inicial" title="Ir para a tela inicial"><span class="wm-b">MINC</span><span class="brand-sub">Peritagem</span></button>${topNav()}<div class="bar-r"><button class="pill" id="syncpill" data-s="${sv.s}" data-act="syncPill" title="Sincronização com a nuvem"><i></i><span>${sv.t}</span></button><span class="pill" id="savestate" data-s="${Saver.state}"><i></i><span>${SAVE_TXT[Saver.state]}</span></span><button class="iconbtn" data-act="gSearch" aria-label="Buscar em tudo" title="Buscar em tudo">${ic('search')}</button><button class="iconbtn" data-act="theme" aria-label="${dark?'Usar tema claro':'Usar tema escuro'}">${ic(dark?'sun':'moon')}</button><button class="userchip" data-act="userMenu" title="${esc(S.user?.name)}"><span>${esc(S.user?.name)}</span></button><button class="iconbtn" data-act="logout" aria-label="Sair">${ic('logout')}</button></div></header><main class="container" id="main">${inner}</main></div>`;
+  return `<div class="app"><header class="topbar no-print"><button class="brand" data-act="home" aria-label="MINC ServiceHub: ir para a tela inicial" title="Ir para a tela inicial"><span class="wm-b">MINC</span><span class="brand-sub">ServiceHub</span></button>${topNav()}<div class="bar-r"><button class="pill" id="syncpill" data-s="${sv.s}" data-act="syncPill" title="Sincronização com a nuvem"><i></i><span>${sv.t}</span></button><span class="pill" id="savestate" data-s="${Saver.state}"><i></i><span>${SAVE_TXT[Saver.state]}</span></span><button class="iconbtn" data-act="gSearch" aria-label="Buscar em tudo" title="Buscar em tudo">${ic('search')}</button><button class="iconbtn" data-act="theme" aria-label="${dark?'Usar tema claro':'Usar tema escuro'}">${ic(dark?'sun':'moon')}</button><button class="userchip" data-act="userMenu" title="${esc(S.user?.name)}"><span>${esc(S.user?.name)}</span></button><button class="iconbtn" data-act="logout" aria-label="Sair">${ic('logout')}</button></div></header><main class="container" id="main">${inner}</main></div>`;
 }
 function view(){
   switch(S.screen){
@@ -520,7 +520,7 @@ function segGlide(m,snap){
 
 /* ---------- Login ---------- */
 function loginArt(){
-  return `<section class="login-art"><div class="la-top">Indústrias Minc</div><div class="la-mid"><h1>Peritagem</h1><p>Registro de inspeção, recuperação e reutilização de equipamentos.</p></div><div class="la-word" aria-label="MINC">MINC</div></section>`;
+  return `<section class="login-art"><div class="la-top">Indústrias Minc</div><div class="la-mid"><h1>ServiceHub</h1><p>Peritagem, RTS e gestão da engenharia de serviço.</p></div><div class="la-word" aria-label="MINC">MINC</div></section>`;
 }
 function loginView(){
   return `<div class="login">${loginArt()}<section class="login-form"><form data-submit="login" autocomplete="on"><div class="wm">MINC</div><h2>Entrar</h2><div class="field"><label for="lg">${CLOUD?'Usuário ou e-mail':'Usuário'}</label><input id="lg" name="login" ${CLOUD?'inputmode="email"':''} required data-keep-case autocapitalize="off" autocorrect="off" spellcheck="false" autocomplete="username"></div><div class="field"><label for="pw">Senha</label><input id="pw" name="pw" type="password" required autocomplete="current-password"></div><button class="btn primary block" type="submit">Entrar</button><p class="foot">Versão ${APP_VERSION}${CLOUD?'':' — modo local'}</p></form></section></div>`;
@@ -952,7 +952,7 @@ async function buildPdf(r,{compress=true}={}){
   const V=t=>pdfTxt(emp(t)?'-':t);
   const m=reportModel(r);
   const logo=await logoForPdf();
-  doc.setProperties({title:pdfTxt(`${FORM.titulo} - ${r.equipamento||''}`),subject:pdfTxt(`Processo ${r.process||''}`),author:pdfTxt(S.user?.name||''),creator:'MINC Peritagem'});
+  doc.setProperties({title:pdfTxt(`${FORM.titulo} - ${r.equipamento||''}`),subject:pdfTxt(`Processo ${r.process||''}`),author:pdfTxt(S.user?.name||''),creator:'MINC ServiceHub'});
   doc.autoTable({...grid,startY:M,body:[[{content:logo?'':'MINC',rowSpan:4,styles:{halign:'center',valign:'middle',fontStyle:'bold',fontSize:18,cellWidth:26}},{content:pdfTxt(FORM.titulo),rowSpan:4,styles:{halign:'center',valign:'middle',fontStyle:'bold',fontSize:11}},H('Tipo:'),pdfTxt(FORM.tipo)],[H('Cód.:'),pdfTxt(FORM.codigo)],[H('Rev.:'),V(FORM.rev)],[H('Data:'),V(fmtISO(FORM.data))]],columnStyles:{2:{cellWidth:16},3:{cellWidth:38}},
     didDrawCell:(data)=>{
       if(!logo||data.section!=='body'||data.column.index!==0||data.row.index!==0)return;

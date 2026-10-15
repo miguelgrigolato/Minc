@@ -1,6 +1,6 @@
-# Minc — Peritagem (v5.19.0)
+# MINC ServiceHub (v5.20.0)
 
-App web (PWA) de peritagem e recuperação de equipamentos da Indústrias Minc. Sem build: arquivos estáticos
+App web (PWA) da engenharia de serviço da Indústrias Minc (antes "MINC Peritagem"): peritagem/D.E, RTS, painel de gestão, catálogos e integração com o Nomus. Sem build: arquivos estáticos
 (`index.html`, `app.js`, ...). Dados no Supabase (projeto `minc-peritagem`) com cópia local no aparelho.
 
 ## Novidades da v5.11.0

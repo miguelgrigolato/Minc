@@ -582,7 +582,7 @@ async function buildRtsPdf(r){
   /* monta o documento; tocPages = páginas reservadas ao sumário (descoberto na 1ª passada) */
   function render(tocPages){
     const doc=new jsPDF({unit:'mm',format:'a4',compress:true});
-    doc.setProperties({title:pt(`${F.titulo} - ${r.numero||''}`),subject:pt(r.produto||''),author:pt(S.user?.name||''),creator:'MINC Peritagem'});
+    doc.setProperties({title:pt(`${F.titulo} - ${r.numero||''}`),subject:pt(r.produto||''),author:pt(S.user?.name||''),creator:'MINC ServiceHub'});
     const toc=[];let y=TOP;
     const page=()=>doc.getNumberOfPages();
     const newPage=()=>{doc.addPage();y=TOP};

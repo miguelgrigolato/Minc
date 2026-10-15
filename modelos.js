@@ -182,7 +182,7 @@ window.buildChecklistPdf=async function(r){
   const grid={theme:'grid',styles:{font:'helvetica',fontSize:8,cellPadding:1.6,lineColor:[0,0,0],lineWidth:.2,textColor:[0,0,0],valign:'middle'},headStyles:{fillColor:[236,236,236],textColor:[0,0,0],fontStyle:'bold',lineWidth:.2,lineColor:[0,0,0]},margin:{left:M,right:M,top:M,bottom:18}};
   const H=t=>({content:pdfTxt(t),styles:{fillColor:[236,236,236],fontStyle:'bold'}});
   const V=t=>pdfTxt(emp(t)?'-':t);
-  doc.setProperties({title:pdfTxt(`${F.titulo} - ${r.equipamento||''}`),subject:pdfTxt(`Processo ${r.process||''}`),author:pdfTxt(S.user?.name||''),creator:'MINC Peritagem'});
+  doc.setProperties({title:pdfTxt(`${F.titulo} - ${r.equipamento||''}`),subject:pdfTxt(`Processo ${r.process||''}`),author:pdfTxt(S.user?.name||''),creator:'MINC ServiceHub'});
   /* cabeçalho no mesmo desenho do DEP */
   doc.autoTable({...grid,startY:M,body:[[{content:logo?'':'MINC',rowSpan:4,styles:{halign:'center',valign:'middle',fontStyle:'bold',fontSize:18,cellWidth:26}},{content:pdfTxt(F.titulo),rowSpan:4,styles:{halign:'center',valign:'middle',fontStyle:'bold',fontSize:11}},H('Tipo:'),pdfTxt(F.tipo)],[H('Cód.:'),V(F.codigo)],[H('Rev.:'),V(F.rev)],[H('Data:'),V(fmtISO(F.data))]],
     didDrawCell:(data)=>{
