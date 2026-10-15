@@ -1,4 +1,4 @@
-# Minc — Peritagem (v5.18.0)
+# Minc — Peritagem (v5.19.0)
 
 App web (PWA) de peritagem e recuperação de equipamentos da Indústrias Minc. Sem build: arquivos estáticos
 (`index.html`, `app.js`, ...). Dados no Supabase (projeto `minc-peritagem`) com cópia local no aparelho.
@@ -10,6 +10,10 @@ App web (PWA) de peritagem e recuperação de equipamentos da Indústrias Minc. 
   desmontagem entrega à fábrica. O código do formulário fica em `catalogo.js` > `CHECKLIST.codigo` (ainda vazio).
 - **RTS (Relatório Técnico de Serviço)** — aba "RTS" no topo (`rts.js`), independente da peritagem. POS com providência,
   atividades padrão (`catalogo.js` > `RTS_BIBLIOTECA`), lista de materiais e PDF no layout R-MINC-060-RTS-PT.
+
+## v5.19.0 — Comparativo RTS × D.E
+- No RTS (editor), painel **Vínculo com a D.E**: escolha o processo da peritagem. O app compara RTS e D.E (cabeçalho, POS/componentes, providências, quantidades e materiais; casa por nº da POS e, na falta dele, pelo nome) e envia o relatório de diferenças ao **Painel de gestão**.
+- Painel: seção "Diferenças RTS × D.E para avaliar" — o gestor abre o relatório, decide (Resolvido / Diferença aceita / Descartado) e anota. Tabela `rts_dep_reports` (migração `20261017_comparativo_rts_dep.sql`, aplicada). Módulo `comparar.js`.
 
 ## v5.18.0 — Perfil Gestor, painel, histórico e busca
 - **Perfil Gestor** (cadastro de usuário): acesso a tudo, menos a aba de usuários (e a auditoria deles). Edita catálogos, modelos e configurações, aprova RTS e vê o Painel.
