@@ -13,7 +13,7 @@
 const MX=window.MINC_EXT=window.MINC_EXT||{};
 for(const k of ['act','chg','sub','inp','views'])MX[k]=MX[k]||{};
 MX.sync=MX.sync||[];MX.boot=MX.boot||[];
-const KEY='minc_np_v1',URLKEY='nomus_url',DAY=864e5,BASE_URL='https://minc.nomus.com.br/minc/';
+const KEY='minc_np_v1',URLKEY='nomus_url',DAY=864e5,BASE_URL='https://minc.nomus.com.br/minc/Ticket.do?metodo=acessar';
 const mgr=()=>typeof isManager==='function'&&isManager();
 const norm=s=>String(s??'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase();
 
@@ -145,7 +145,7 @@ function levDialog(titulo,aviso){
 }
 function levPronto(){
   const L=NP.lev,b=document.getElementById('np-lev-b');if(!b||!L)return;
-  b.innerHTML=`<div class="field"><label for="np-nm">Nome do arquivo</label><input id="np-nm" data-keep-case value="${esc(L.name)}" autocomplete="off"></div>${L.pedeId?`<div class="field"><label for="np-id">Nº do processo no Nomus</label><input id="np-id" data-keep-case inputmode="numeric" value="${esc(L.id||'')}" placeholder="1173" autocomplete="off"></div>`:''}${NP.temUrl()?'':`<p class="hint">Dica: ${mgr()?'em Configurações, informe o endereço de um processo do Nomus para o botão abrir direto no processo.':'peça a um gestor para informar, em Configurações, o endereço de um processo do Nomus; assim o botão abre direto no processo.'}</p>`}<div class="actions end"><button class="btn" type="button" data-act="closeDlg">Fechar</button><button class="btn primary" type="button" data-act="npLevarGo">${ic('download')}Baixar e abrir o Nomus</button></div>`;
+  b.innerHTML=`<div class="field"><label for="np-nm">Nome do arquivo</label><input id="np-nm" data-keep-case value="${esc(L.name)}" autocomplete="off"></div>${L.pedeId?`<div class="field"><label for="np-id">Nº do processo no Nomus</label><input id="np-id" data-keep-case inputmode="numeric" value="${esc(L.id||'')}" placeholder="1173" autocomplete="off"></div>`:''}${NP.temUrl()?'':`<p class="hint">Dica: ${mgr()?'em Configurações, informe o endereço de um processo do Nomus para o botão abrir direto no processo. Por enquanto ele abre o CRM e você procura o processo pelo número.':'peça a um gestor para informar, em Configurações, o endereço de um processo do Nomus; assim o botão abre direto no processo.'}</p>`}<div class="actions end"><button class="btn" type="button" data-act="closeDlg">Fechar</button><button class="btn primary" type="button" data-act="npLevarGo">${ic('download')}Baixar e abrir o Nomus</button></div>`;
 }
 Object.assign(MX.act,{
   async npLevar(el){
@@ -233,7 +233,7 @@ window.npCadBtn=()=>`<button class="btn" data-act="npCadXlsx">${ic('download')}E
 window.vNpAdmin=()=>{
   if(!NP.on())return '';
   const t=NP.tpl??(()=>{try{return localStorage.getItem(URLKEY)}catch{return ''}})()??'';
-  return `<div class="panel"><h2>Abrir o processo direto no Nomus</h2><p class="hint">Abra um processo no Nomus, copie o endereço da barra do navegador e troque o número do processo por <b>{id}</b>. Exemplo: <code>https://…/CrmProcesso.exec?id={id}</code>. O botão “Levar ao Nomus” e “Abrir no Nomus” passam a abrir direto no processo. Vazio: abre a página inicial do Nomus.</p><div class="field"><label for="np-url">Endereço de um processo (com {id})</label><input id="np-url" data-keep-case autocomplete="off" value="${esc(t||'')}" placeholder="https://minc.nomus.com.br/minc/...{id}..."></div><div class="actions"><button type="button" class="btn" data-act="npUrlSave">Salvar</button></div></div>`;
+  return `<div class="panel"><h2>Abrir o processo direto no Nomus</h2><p class="hint">Abra um processo no Nomus, copie o endereço da barra do navegador e troque o número do processo por <b>{id}</b>. Exemplo: <code>https://…/CrmProcesso.exec?id={id}</code>. O botão “Levar ao Nomus” e “Abrir no Nomus” passam a abrir direto no processo. Vazio: abre o CRM do Nomus (Ticket.do?metodo=acessar), onde você procura o processo pelo número.</p><div class="field"><label for="np-url">Endereço de um processo (com {id})</label><input id="np-url" data-keep-case autocomplete="off" value="${esc(t||'')}" placeholder="https://minc.nomus.com.br/minc/...{id}..."></div><div class="actions"><button type="button" class="btn" data-act="npUrlSave">Salvar</button></div></div>`;
 };
 
 /* sincronização: situação dos processos + endereço */
