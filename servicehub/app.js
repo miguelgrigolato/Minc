@@ -2,7 +2,7 @@
 /* MINC · Peritagem — v5.9.0
    Organização: utilitários → Store (IndexedDB) → Fotos → Auth → Regras (validação) → Telas → Ações/eventos → Boot */
 
-const APP_VERSION='5.28.0';
+const APP_VERSION='5.29.0';
 /* v5.11.0: módulos novos ficam em modelos.js (banco de modelos de válvula + checklist de entrega) e rts.js (Relatório Técnico de Serviço).
    Eles se registram em window.MINC_EXT (act/chg/sub/inp/views) e são mesclados aqui antes do boot(). */
 const EXT=window.MINC_EXT=window.MINC_EXT||{};
@@ -435,7 +435,7 @@ function applic({on,act,extra='',yes='Aplica',no='Não se aplica'}){
 }
 
 /* navegação principal: Peritagens | RTS (módulos novos aparecem aqui) */
-const NAV_RTS=['rts','rtsEdit'];
+const NAV_RTS=['rts','rtsEdit','custo'];
 function topNav(){
   const rtsOn=!!(window.Settings&&Settings.rtsOn()),panelOn=isManager();
   if(!rtsOn&&!panelOn)return'';   // um único módulo: não há o que alternar
@@ -564,11 +564,12 @@ function vHome(){
   const sel=all.find(p=>p.id===S.sel);
   return `<div class="home"><section class="list-p" aria-label="Processos"><div class="list-h"><div><h1>Processos</h1><small>${plural(all.length,'cadastrado','cadastrados')}</small></div><button class="btn primary" data-act="newProcess">${ic('plus')}Novo processo</button></div><div class="search">${ic('search')}<input type="search" id="q" placeholder="Buscar equipamento, cliente, pedido…" aria-label="Buscar processos" data-keep-case data-inp="q" value="${esc(S.q)}"></div><div class="chips fl" role="group" aria-label="Filtrar por status">${['Todos',...STATUS].map(f=>`<button class="chip ${S.filter===f?'on':''}" data-act="filter" data-v="${f}" aria-pressed="${S.filter===f}" data-fk="fl-${f}">${f}</button>`).join('')}</div><div id="rows">${rowsHTML(list)}</div></section><section class="detail" aria-live="polite">${detail(sel,all)}</section></div>`;
 }
+const kvI=(t,v,req)=>{const e=v==null||String(v).trim()==='';return e&&!req?'':`<div><dt>${t}</dt><dd>${e?'<span class="pend-t">pendente</span>':esc(v)}</dd></div>`};
 function detail(p,all){
   if(!all.length)return `<div class="empty-art">${emptyMark()}<h2>Nenhum processo ainda</h2><p>Crie o primeiro registro de peritagem para começar.</p><button class="btn primary" data-act="newProcess">${ic('plus')}Novo processo</button></div>`;
   if(!p)return `<div class="empty-art">${emptyMark()}<h2>Selecione um processo</h2><p>Veja o resumo e abra o registro de peritagem.</p></div>`;
   const nPh=p.components.reduce((n,c)=>n+c.photos.length,0)+p.equipmentPhotos.length;
-  return `<article class="sheet"><div class="sheet-h"><div><small>Equipamento</small><h2>${esc(p.equipamento)||'Sem equipamento'}</h2></div>${badge(p.status)}</div><dl class="kv"><div><dt>Cliente</dt><dd>${esc(p.cliente)||'—'}</dd></div><div><dt>Processo</dt><dd>${esc(p.process)||'—'}</dd></div>${window.npLine?npLine(p):''}<div><dt>Pedido / Ordem</dt><dd>${esc(p.pedido)||'—'} / ${esc(p.ordem)||'<span class="pend-t">pendente</span>'}</dd></div><div><dt>Vedação</dt><dd>${esc(p.vedacao)||'—'}</dd></div><div><dt>Acionamento</dt><dd>${esc(p.acionamento)||'—'}</dd></div><div><dt>Fluido de trabalho</dt><dd>${esc(p.fluido)||'—'}</dd></div><div><dt>Atualizado em</dt><dd>${fmt(p.updatedAt)}</dd></div><div><dt>Por</dt><dd>${esc(p.updatedBy||p.createdBy)||'—'}</dd></div><div><dt>Criado por</dt><dd>${esc(p.createdBy)||'—'}</dd></div></dl><div class="sheet-b"><h3>Etapas</h3><ul class="prog">${VALIDATED.map(k=>{const ok=stepOk(k,p);return `<li class="${ok?'ok':'todo'}">${ok?ic('check','ic sm'):ic('alert','ic sm')}${STEPS.find(s=>s.k===k).t}</li>`}).join('')}</ul><div class="counts"><span><b>${fmtN(p.components.length)}</b>${p.components.length===1?'componente':'componentes'}</span><span><b>${fmtN(nPh)}</b>${nPh===1?'foto':'fotos'}</span></div><div class="actions"><button class="btn primary" data-act="openProcess" data-id="${p.id}">Abrir processo</button><button class="btn" data-act="openDoc" data-id="${p.id}">Documento</button>${window.histBtn?histBtn(p.id):''}<button class="btn danger" data-act="delProcess" data-id="${p.id}">${ic('trash')}Excluir</button></div></div></article>`;
+  return `<article class="sheet"><div class="sheet-h"><div><small>Equipamento</small><h2>${esc(p.equipamento)||'Sem equipamento'}</h2></div>${badge(p.status)}</div><dl class="kv">${kvI('Cliente',p.cliente,1)}${kvI('Processo',p.process,1)}${window.npLine?npLine(p):''}<div><dt>Pedido / Ordem</dt><dd>${esc(p.pedido)||'<span class="pend-t">pendente</span>'} / ${esc(p.ordem)||'<span class="pend-t">pendente</span>'}</dd></div>${kvI('Vedação',p.vedacao,1)}${kvI('Acionamento',p.acionamento,1)}${kvI('Fluido de trabalho',p.fluido)}${window.deApLine?deApLine(p):''}${kvI('Atualizado em',fmt(p.updatedAt))}${kvI('Por',p.updatedBy||p.createdBy)}${p.createdBy&&p.createdBy!==(p.updatedBy||p.createdBy)?kvI('Criado por',p.createdBy):''}</dl><div class="sheet-b"><h3>Etapas</h3><ul class="prog">${VALIDATED.map(k=>{const ok=stepOk(k,p);return `<li class="${ok?'ok':'todo'}">${ok?ic('check','ic sm'):ic('alert','ic sm')}${STEPS.find(s=>s.k===k).t}</li>`}).join('')}</ul><div class="counts"><span><b>${fmtN(p.components.length)}</b>${p.components.length===1?'componente':'componentes'}</span><span><b>${fmtN(nPh)}</b>${nPh===1?'foto':'fotos'}</span></div><div class="actions"><button class="btn primary" data-act="openProcess" data-id="${p.id}">Abrir processo</button><button class="btn" data-act="openDoc" data-id="${p.id}">Documento</button>${window.histBtn?histBtn(p.id):''}<button class="btn danger" data-act="delProcess" data-id="${p.id}">${ic('trash')}Excluir</button></div></div></article>`;
 }
 
 /* ---------- Carimbo, etapas e barra de ações ---------- */
@@ -789,7 +790,7 @@ ${comp||'<p>Nenhum componente.</p>'}${extra.join('')}${emp(r.observacoes)?'':`<d
 <table class="report-table rp-sign"><tr><th>Elaborado por / Data</th><th>Aprovado por / Data</th></tr><tr><td>${esc(r.elaboradoPor)}${r.elaboradoData?' / '+fmtISO(r.elaboradoData):''}<div class="sig"></div></td><td>${esc(r.aprovadoPor)}${r.aprovadoData?' / '+fmtISO(r.aprovadoData):''}<div class="sig"></div></td></tr></table></div>`;
 }
 function vExec(){
-  return `<div class="ph no-print"><h1>Documento de execução</h1><p>Relatório no formato do formulário ${esc(FORM.codigo)}. Gere e arquive o PDF abaixo, ou use “Baixar PDF” na barra inferior (o PDF sai com o seu nome no rodapé).</p></div>${docsPanel(cur())}${window.checklistPanel?checklistPanel(cur()):''}${reportHTML(cur())}`;
+  return `<div class="ph no-print"><h1>Documento de execução</h1><p>Relatório no formato do formulário ${esc(FORM.codigo)}. Gere e arquive o PDF abaixo, ou use “Baixar PDF” na barra inferior (o PDF sai com o seu nome no rodapé).</p></div>${window.deApprovalBar?deApprovalBar(cur()):''}${docsPanel(cur())}${window.checklistPanel?checklistPanel(cur()):''}${reportHTML(cur())}`;
 }
 
 /* ---------- 6. Estrutura ---------- */
@@ -1307,14 +1308,14 @@ const Sync={
     for(const p of PROCS.filter(x=>x._dirty&&!x._conflict)){
       const snap=p.updatedAt,row=toRow(p);let out=null;
       if(p._rev==null){
-        const r=await SB.from('processes').insert(row).select('rev').single();
+        const r=await SB.from('processes').insert(row).select('rev,data').single();
         if(!r.error)out=r.data;
         else if(r.error.code==='23505'){const q=await SB.from('processes').select('rev').eq('id',p.id).single();if(q.error)throw q.error;p._rev=q.data.rev}   // reenvio de uma tentativa anterior
-        else throw r.error;
+        else{if(window.apReject&&await apReject('processes',p,r.error,()=>Store.put('processes',p))){did=true;continue}throw r.error}
       }
       if(!out){
-        const r=await SB.from('processes').update(row).eq('id',p.id).eq('rev',p._rev).select('rev');
-        if(r.error)throw r.error;
+        const r=await SB.from('processes').update(row).eq('id',p.id).eq('rev',p._rev).select('rev,data');
+        if(r.error){if(window.apReject&&await apReject('processes',p,r.error,()=>Store.put('processes',p))){did=true;continue}throw r.error}
         if(!r.data.length){   // a revisão mudou: alguém gravou antes de nós
           const q=await SB.from('processes').select('*').eq('id',p.id).single();if(q.error)throw q.error;
           p._conflict=q.data;await Store.put('processes',p);did=true;continue;
@@ -1322,6 +1323,7 @@ const Sync={
         out=r.data[0];
       }
       p._rev=out.rev;if(p.updatedAt===snap)p._dirty=false;   // se foi editado durante o envio, continua pendente
+      if(out.data&&p.updatedAt===snap){p.aprovacao=out.data.aprovacao;if(out.data.aprovadoPor!==undefined)p.aprovadoPor=out.data.aprovadoPor;if(out.data.aprovadoData!==undefined)p.aprovadoData=out.data.aprovadoData}   // o servidor é quem carimba a aprovação
       await Store.put('processes',p);did=true;
     }
     return did;

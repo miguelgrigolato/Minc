@@ -18,8 +18,19 @@ const me=()=>S.user?.name||'';
 function compute(){
   const out=[],mgr=typeof isManager==='function'&&isManager(),rtsOn=!!(window.Settings&&Settings.rtsOn());
   const rts=(window.RTSLIST?RTSLIST():[]).filter(r=>!r.deletedAt);
+  if(typeof PROCS!=='undefined'){
+    const apv=window.canApprove&&canApprove();
+    PROCS.filter(p=>!p.deletedAt&&p.aprovacao).forEach(p=>{
+      const a=p.aprovacao,nome=p.process||p.equipamento||'sem nº';
+      if(apv&&a.estado==='aguardando')out.push({id:'deapr:'+p.id+':'+(a.enviadoEm||''),kind:'proc',rid:p.id,t:`D.E. ${nome} aguarda a sua aprovação`,s:`Enviada por ${a.enviadoPor||'—'} · ${p.cliente||''}`,at:a.enviadoEm||p.updatedAt});
+      if(a.enviadoPor===me()||p.createdBy===me()){
+        if(a.estado==='aprovado')out.push({id:'deok:'+p.id+':'+(a.aprovadoEm||''),kind:'proc',rid:p.id,t:`D.E. ${nome} aprovada`,s:`Por ${a.aprovadoPor||'—'}`,at:a.aprovadoEm||p.updatedAt,info:true});
+        if(a.estado==='reprovado')out.push({id:'dere:'+p.id+':'+(a.reprovadoEm||''),kind:'proc',rid:p.id,t:`D.E. ${nome} reprovada`,s:a.motivo||'',at:a.reprovadoEm||p.updatedAt});
+      }
+    });
+  }
   if(rtsOn){
-    if(mgr)rts.filter(r=>r.status==='Aguardando aprovação').forEach(r=>out.push({id:'apr:'+r.id+':'+(r.enviadoEm||''),kind:'rts',rid:r.id,t:`RTS ${r.numero||'sem nº'} aguarda a sua aprovação`,s:`Enviado por ${r.enviadoPor||'—'} · ${r.cliente||''}`,at:r.enviadoEm||r.updatedAt}));
+    if(window.canApprove&&canApprove())rts.filter(r=>r.status==='Aguardando aprovação').forEach(r=>out.push({id:'apr:'+r.id+':'+(r.enviadoEm||''),kind:'rts',rid:r.id,t:`RTS ${r.numero||'sem nº'} aguarda a sua aprovação`,s:`Enviado por ${r.enviadoPor||'—'} · ${r.cliente||''}`,at:r.enviadoEm||r.updatedAt}));
     rts.filter(r=>r.enviadoPor===me()||r.elaboradoPor===me()).forEach(r=>{
       if(r.status==='Aprovado')out.push({id:'ok:'+r.id+':'+(r.aprovadoEm||''),kind:'rts',rid:r.id,t:`RTS ${r.numero||'sem nº'} aprovado`,s:`Por ${r.aprovadoPor||'—'}`,at:r.aprovadoEm||r.updatedAt,info:true});
       if(r.status==='Rascunho'&&r.motivoDevolucao)out.push({id:'dev:'+r.id+':'+(+r.devolucoes||0),kind:'rts',rid:r.id,t:`RTS ${r.numero||'sem nº'} devolvido para ajustes`,s:r.motivoDevolucao,at:r.updatedAt});

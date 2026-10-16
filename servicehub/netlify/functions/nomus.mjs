@@ -249,6 +249,53 @@ async function varios(ids) {
   return { itens, faltam };
 }
 
+
+/* ---------- histórico de compras (para o preço de referência do módulo de Custos) ----------
+   SOMENTE LEITURA. Recurso "pedidoscompra" da API REST do Nomus. Os nomes dos campos de pedido/itens de compra ainda não foram
+   confirmados com a chave real (sem acesso ao Nomus durante o desenvolvimento): por isso a leitura aceita nomes alternativos e a
+   ação "compras_sonda" devolve os campos que o Nomus realmente manda, para ajustar a leitura se for preciso. */
+const num = (v) => { if (v == null || v === "") return null; const n = typeof v === "number" ? v : parseFloat(String(v).replace(/\./g, "").replace(",", ".")); return Number.isFinite(n) ? n : null; };
+const pick = (o, ks) => { for (const k of ks) if (o && o[k] != null && o[k] !== "") return o[k]; return null; };
+const itensDoPedido = (p) => pick(p, ["itensPedidoCompra", "itensPedido", "itensCompra", "itens"]) || [];
+async function idsDosProdutos(codigos) {
+  const m = {};
+  for (const c of codigos) {
+    try { const l = await nomus("produtos", `codigo=${c}`); const x = Array.isArray(l) ? l.find((p) => String(p.codigo || "").trim().toUpperCase() === String(c).trim().toUpperCase()) : null; if (x && x.id) m[x.id] = c; }
+    catch (e) { if (e.status === 429) throw e; }
+  }
+  return m;
+}
+async function compras(codigos, pagina) {
+  const porId = await idsDosProdutos(codigos), ini = Date.now(), registros = [];
+  let pg = Math.max(1, +pagina || 1), fim = false, campos = null, lidas = 0;
+  if (!Object.keys(porId).length) return { registros, proxima: null, paginas: 0, semProduto: codigos, aviso: "Nenhum destes códigos foi encontrado no cadastro de produtos do Nomus." };
+  while (Date.now() - ini < 16000 && lidas < 12) {
+    const l = await nomus("pedidoscompra", "", 3, pg);
+    if (!Array.isArray(l) || !l.length) { fim = true; break; }
+    lidas++;
+    if (!campos) { const it = itensDoPedido(l[0])[0]; campos = { pedido: Object.keys(l[0] || {}), item: it ? Object.keys(it) : [] }; }
+    for (const p of l) for (const it of itensDoPedido(p)) {
+      const id = pick(it, ["idProduto", "produtoId"]) ?? (it.produto && it.produto.id);
+      if (!porId[id]) continue;
+      registros.push({
+        codigo: porId[id], pedido: pick(p, ["codigoPedido", "codigo", "nome"]) || "", data: pick(p, ["dataEmissao", "dataPedido", "data"]) || "",
+        situacao: String(pick(p, ["situacao", "nomeSituacao", "status", "statusPedido"]) || ""), fornecedor: String(pick(p, ["nomeFornecedor", "nomePessoaFornecedor", "fornecedor"]) || "").slice(0, 80),
+        quantidade: num(pick(it, ["quantidade", "qtde", "qtd"])), valorUnitario: num(pick(it, ["valorUnitario", "precoUnitario", "valorUnitarioLiquido", "preco"])),
+        unidade: String(pick(it, ["unidadeMedida", "siglaUnidadeMedida", "nomeUnidadeMedida", "unidade"]) || ""), moeda: String(pick(it, ["moeda", "siglaMoeda"]) || pick(p, ["moeda", "siglaMoeda"]) || ""),
+      });
+    }
+    pg++;
+  }
+  return { registros, proxima: fim ? null : pg, paginas: lidas, campos, semProduto: codigos.filter((c) => !Object.values(porId).includes(c)) };
+}
+async function comprasSonda() {
+  const l = await nomus("pedidoscompra", "", 2, 1);
+  if (!Array.isArray(l)) return { ok: false, aviso: "O Nomus não devolveu uma lista para pedidoscompra.", tipo: typeof l };
+  const p = l[0] || {}, it = itensDoPedido(p)[0] || {};
+  const raso = (o) => Object.fromEntries(Object.entries(o).filter(([, v]) => v == null || typeof v !== "object").map(([k, v]) => [k, v == null ? null : String(v).slice(0, 60)]));
+  return { ok: true, pedidos: l.length, camposPedido: raso(p), camposItem: raso(it), chaves: Object.keys(p) };
+}
+
 /* só usuário ativo do app (admin, gestor ou operador) */
 async function usuario(auth) {
   if (!auth.startsWith("Bearer ")) return null;
@@ -296,6 +343,15 @@ export default async (req) => {
       const r = await buscar(q, ["pedido", "ordem", "processo"].includes(body.tipo) ? body.tipo : null, !!body.exato);
       if (!r) return json(404, { error: `Não encontrei "${q.trim()}" no Nomus. Tente com % (ex.: PD%${q.replace(/\D/g, "") || "307"}).` });
       return json(200, r);
+    }
+    if (body.acao === "compras") {
+      const cods = [...new Set((Array.isArray(body.codigos) ? body.codigos : []).map((c) => String(c || "").trim()).filter(Boolean))].slice(0, 25);
+      if (!cods.length) return json(400, { error: "Informe os códigos dos materiais." });
+      return json(200, await compras(cods, body.pagina));
+    }
+    if (body.acao === "compras_sonda") {
+      if (!["admin", "gestor"].includes(who.role)) return json(403, { error: "Só administrador ou gestor." });
+      return json(200, await comprasSonda());
     }
     return json(400, { error: "Ação inválida." });
   } catch (e) {

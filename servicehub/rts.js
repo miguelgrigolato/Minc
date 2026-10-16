@@ -31,6 +31,7 @@ const missing=e=>!!e&&(e.code==='PGRST205'||e.code==='42P01'||/relation .* does 
 const today=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
 const nowHM=()=>{const d=new Date();return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')};
 const dedupe=a=>[...new Set(a)];
+const canAp=()=>window.canApprove?window.canApprove():isAdminU();
 const isAdminU=()=>CLOUD?['admin','gestor'].includes(S.user?.cloudRole):['Administrador','Gestor'].includes(S.user?.role);   // quem aprova: administrador ou gestor
 
 /* ============================== Dados ============================== */
@@ -161,19 +162,21 @@ const Cloud={
     for(const r of RTS.filter(x=>x._dirty&&!x._conflict)){
       const snap=r.updatedAt,row=toRowR(r);let out=null;
       if(r._rev==null){
-        const q=await SB.from('rts_documents').insert(row).select('rev').single();
+        const q=await SB.from('rts_documents').insert(row).select('rev,data').single();
         if(!q.error)out=q.data;
         else if(missing(q.error)){this.missing=true;return did}
         else if(q.error.code==='23505'){const g=await SB.from('rts_documents').select('rev').eq('id',r.id).single();if(g.error)throw g.error;r._rev=g.data.rev}
-        else throw q.error;
+        else{if(window.apReject&&await apReject('rts_documents',r,q.error,()=>RtsStore.put(r))){did=true;continue}throw q.error}
       }
       if(!out){
-        const q=await SB.from('rts_documents').update(row).eq('id',r.id).eq('rev',r._rev).select('rev');
-        if(q.error)throw q.error;
+        const q=await SB.from('rts_documents').update(row).eq('id',r.id).eq('rev',r._rev).select('rev,data');
+        if(q.error){if(window.apReject&&await apReject('rts_documents',r,q.error,()=>RtsStore.put(r))){did=true;continue}throw q.error}
         if(!q.data.length){const g=await SB.from('rts_documents').select('*').eq('id',r.id).single();if(g.error)throw g.error;r._conflict=g.data;await RtsStore.put(r);did=true;continue}
         out=q.data[0];
       }
-      r._rev=out.rev;if(r.updatedAt===snap)r._dirty=false;await RtsStore.put(r);did=true;
+      r._rev=out.rev;if(r.updatedAt===snap)r._dirty=false;
+      if(out.data&&r.updatedAt===snap)for(const k of ['aprovadoPor','aprovadoPorId','aprovadoEm','enviadoPor','enviadoPorId','enviadoEm','devolvidoPor','devolvidoPorId','devolvidoEm','motivoDevolucao'])if(out.data[k]!==undefined)r[k]=out.data[k];   // carimbos do servidor
+      await RtsStore.put(r);did=true;
     }
     return did;
   },
@@ -216,12 +219,15 @@ function filteredR(){return RTS.filter(r=>!r.deletedAt&&(S.rtsF==='Todos'||!S.rt
 function rowsRts(){
   const l=filteredR();
   if(!l.length)return `<div class="empty"><h2>${RTS.some(r=>!r.deletedAt)?'Nada encontrado':'Nenhum RTS ainda'}</h2><p>${RTS.some(r=>!r.deletedAt)?'Ajuste a busca ou o filtro.':'Crie o primeiro Relatório Técnico de Serviço.'}</p></div>`;
-  return l.map(r=>`<button class="rts-row" data-act="rtsOpen" data-id="${esc(r.id)}"><div class="rts-r1"><b>${esc(r.numero)||'Sem nº'}</b><span class="badge ${rCls[r.status]||'st-gray'}">${esc(r.status)}</span>${r._conflict?'<span class="badge st-amber">Conflito</span>':''}</div><div class="rts-r2">${esc(r.produto)||'Sem produto'}</div><div class="rts-r3">${esc(r.cliente)||'—'} · ${r.status===S_APR&&r.aprovadoPor?'aprovado por '+esc(r.aprovadoPor)+' · ':''}atualizado em ${fmt(r.updatedAt)}${r._dirty?' · envio pendente':''}</div></button>`).join('');
+  return l.map(r=>{
+    const info=[r.cliente,r.status===S_APR&&r.aprovadoPor?'aprovado por '+r.aprovadoPor:'','atualizado em '+fmt(r.updatedAt),r._dirty?'envio pendente':''].filter(x=>!emp(x)).map(esc).join(' · ');
+    return `<div class="rts-row2"><button class="rts-row" data-act="rtsOpen" data-id="${esc(r.id)}"><div class="rts-r1"><b>${esc(r.numero)||'Sem nº'}</b><span class="badge ${rCls[r.status]||'st-gray'}">${esc(r.status)}</span>${r._conflict?'<span class="badge st-amber">Conflito</span>':''}</div><div class="rts-r2">${esc(r.produto)||'Sem produto'}</div><div class="rts-r3">${info}</div></button><div class="rts-ra"><button class="btn" data-act="rtsPdfRow" data-id="${esc(r.id)}">${ic('print')}Visualizar</button>${window.custoBtn?custoBtn(r):''}</div></div>`;
+  }).join('');
 }
 MX.views.rts=function(){
   const all=RTS.filter(r=>!r.deletedAt),aguard=all.filter(r=>r.status===S_AGU).length;
   const note=CLOUD&&Cloud.missing?'<p class="errbox" style="margin-bottom:12px">A tabela de RTS ainda não existe na nuvem; por enquanto os RTS ficam só neste aparelho. Peça ao responsável técnico para aplicar a migração 20261013_modelos_valvula_e_rts.sql.</p>':'';
-  const pend=isAdminU()&&aguard?`<div class="mdl-hint" style="margin-bottom:12px"><b>${aguard===1?'1 RTS aguarda':aguard+' RTS aguardam'} a sua aprovação</b><span><button class="btn" data-act="rtsFilter" data-v="${S_AGU}" style="margin-top:6px">Ver pendentes</button></span></div>`:'';
+  const pend=canAp()&&aguard?`<div class="mdl-hint" style="margin-bottom:12px"><b>${aguard===1?'1 RTS aguarda':aguard+' RTS aguardam'} a sua aprovação</b><span><button class="btn" data-act="rtsFilter" data-v="${S_AGU}" style="margin-top:6px">Ver pendentes</button></span></div>`:'';
   return `<div class="rts-home"><div class="list-h"><div><h1>Relatórios Técnicos de Serviço</h1><small>${plural(all.length,'cadastrado','cadastrados')}</small></div><button class="btn primary" data-act="rtsNew">${ic('plus')}Novo RTS</button></div>${note}${pend}<div class="search">${ic('search')}<input type="search" id="rts-q" placeholder="Buscar proposta, cliente, produto…" aria-label="Buscar RTS" data-keep-case data-inp="rtsQ" value="${esc(S.rtsQ||'')}"></div><div class="chips fl" role="group" aria-label="Filtrar por status">${['Todos',...RSTATUS].map(f=>`<button class="chip ${(S.rtsF||'Todos')===f?'on':''}" data-act="rtsFilter" data-v="${f}" aria-pressed="${(S.rtsF||'Todos')===f}" data-fk="rf-${f}">${f}</button>`).join('')}</div><div id="rts-rows" class="rts-rows">${rowsRts()}</div></div>`;
 };
 
@@ -282,23 +288,28 @@ function anexoCard(r,a,i){
   const n=String(i+1).padStart(2,'0');
   const head=`<div class="rts-bh"><div class="field"><label for="ax-${a.id}">Anexo ${n} — título</label><input id="ax-${a.id}" value="${esc(a.titulo)}" data-inp="rtsAx" data-aid="${esc(a.id)}" data-k="titulo" list="dl-anexos" autocomplete="off"></div><div class="rts-mv"><button class="iconb" data-act="rtsAxMv" data-aid="${esc(a.id)}" data-dir="-1" aria-label="Subir anexo">${ic('up')}</button><button class="iconb" data-act="rtsAxMv" data-aid="${esc(a.id)}" data-dir="1" aria-label="Descer anexo">${ic('chev')}</button><button class="iconb" data-act="rtsAxRm" data-aid="${esc(a.id)}" aria-label="Remover anexo">${ic('trash')}</button></div></div>`;
   if(a.tipo==='materiais')return `<article class="rts-pos">${head}<div class="actions" style="margin-bottom:8px"><button class="btn" data-act="rtsMatSync">Atualizar a partir das POS</button><button class="btn" data-act="rtsMatAdd">${ic('plus')}Item</button></div><div class="rts-mats"><div class="rts-mh"><span>Descrição</span><span>Unid.</span><span>Qtd.</span><span></span></div>${matRows(r)}</div></article>`;
-  const items=a.itens.map(it=>{
-    const u=it.img&&Photos.urls.get(it.img.id);
-    return `<div class="rts-img"><div class="rts-thumb">${u?`<img src="${u}" alt="${esc(it.img.name||'')}">`:`<span class="muted">${it.img?'Baixando…':'Sem imagem'}</span>`}</div><div class="rts-imf"><div class="field"><label for="d-${it.id}">Descrição</label><input id="d-${it.id}" value="${esc(it.descricao)}" data-inp="rtsAxIt" data-aid="${esc(a.id)}" data-id="${esc(it.id)}" data-k="descricao" autocomplete="off"></div><div class="field"><label for="s-${it.id}">Status / observação</label><textarea id="s-${it.id}" rows="2" class="rts-ta" data-inp="rtsAxIt" data-aid="${esc(a.id)}" data-id="${esc(it.id)}" data-k="status" data-keep-case>${esc(it.status)}</textarea></div></div><button class="iconb" data-act="rtsImgRm" data-aid="${esc(a.id)}" data-id="${esc(it.id)}" aria-label="Remover imagem">${ic('trash')}</button></div>`;
+  const items=a.itens.map((it,k)=>{
+    const u=it.img&&Photos.urls.get(it.img.id),last=k===a.itens.length-1;
+    const fld=(lbl,key,rows)=>`<div class="field"><label for="${key[0]}-${it.id}">${lbl}</label>${rows?`<textarea id="${key[0]}-${it.id}" rows="${rows}" class="rts-ta" data-inp="rtsAxIt" data-aid="${esc(a.id)}" data-id="${esc(it.id)}" data-k="${key}" data-keep-case>${esc(it[key])}</textarea>`:`<input id="${key[0]}-${it.id}" value="${esc(it[key])}" data-inp="rtsAxIt" data-aid="${esc(a.id)}" data-id="${esc(it.id)}" data-k="${key}" autocomplete="off">`}</div>`;
+    return `<div class="rts-img" data-foto="${esc(it.id)}"><div class="rts-thumb"><span class="rts-fn">Foto ${k+1}</span>${u?`<img src="${u}" alt="Foto ${k+1} — ${esc(it.descricao||it.img.name||'')}">`:`<span class="muted">${it.img?'Baixando…':'Sem imagem'}</span>`}</div><div class="rts-imf">${fld('Legenda (opcional)','descricao')}${fld(`Comentário da foto ${k+1} (opcional)`,'status',3)}</div><div class="rts-mv rts-mvc"><button class="iconb" data-act="rtsImgMv" data-aid="${esc(a.id)}" data-id="${esc(it.id)}" data-dir="-1" aria-label="Mover foto ${k+1} para cima" ${k===0?'disabled':''}>${ic('up')}</button><button class="iconb" data-act="rtsImgMv" data-aid="${esc(a.id)}" data-id="${esc(it.id)}" data-dir="1" aria-label="Mover foto ${k+1} para baixo" ${last?'disabled':''}>${ic('chev')}</button><button class="iconb" data-act="rtsImgRm" data-aid="${esc(a.id)}" data-id="${esc(it.id)}" aria-label="Remover foto ${k+1}">${ic('trash')}</button></div></div>`;
   }).join('')||'<p class="hint">Nenhuma imagem neste anexo.</p>';
   return `<article class="rts-pos">${head}<div class="field" style="max-width:340px"><label for="ly-${a.id}">Disposição das imagens no PDF</label><select id="ly-${a.id}" data-chg="rtsAxLayout" data-aid="${esc(a.id)}"><option value="lado" ${a.layout==='lado'?'selected':''}>Imagem ao lado da descrição</option><option value="cheia" ${a.layout==='cheia'?'selected':''}>Imagem em largura total (desenhos)</option></select></div>${items}<div class="actions" style="margin-top:8px"><button class="btn" data-act="rtsImgAdd" data-aid="${esc(a.id)}">${ic('camera')}Adicionar imagens</button></div></article>`;
 }
 /* barra de aprovação: o fluxo e quem pode o quê */
 function approvalBar(r){
-  const adm=isAdminU();
+  const adm=canAp(),q=window.aprovQuem?aprovQuem():'quem aprova',hist=CLOUD&&window.histAprovBtn?histAprovBtn('rts',r.id):'';
+  const wrap=(cls,h,acts)=>`<div class="panel rts-ap" data-ap="${cls}"><div class="ph-row"><div>${h}</div><div class="actions">${hist}${acts}</div></div></div>`;
   if(r.status===S_RAS){
-    const back=!emp(r.motivoDevolucao)?`<div class="errbox" style="margin-bottom:10px" role="alert"><b>Devolvido para ajustes${r.devolvidoPor?' por '+esc(r.devolvidoPor):''}:</b> ${esc(r.motivoDevolucao)}</div>`:'';
-    return `<div class="panel rts-ap" data-ap="no">${back}<div class="ph-row"><div><h2>Aprovação</h2><p class="hint" style="margin:0">Rascunho. Quando estiver pronto, envie para aprovação. O PDF só sai com “Aprovado por” depois que o administrador aprovar aqui no app.</p></div><button class="btn primary" data-act="rtsSubmit">${ic('next')}Enviar para aprovação</button></div></div>`;
+    const back=!emp(r.motivoDevolucao)?`<div class="errbox" style="margin-bottom:10px" role="alert"><b>Reprovado${r.devolvidoPor?' por '+esc(r.devolvidoPor):''}:</b> ${esc(r.motivoDevolucao)}</div>`:'';
+    return wrap('no',`${back}<h2>Aprovação</h2><p class="hint" style="margin:0">${adm?'Você pode aprovar este RTS diretamente. O PDF sai com “Aprovado por” e a data da aprovação.':'Rascunho. Quando estiver pronto, envie para aprovação ('+esc(q)+'). O PDF só sai com “Aprovado por” depois da aprovação aqui no app.'}</p>`,
+      adm?`<button class="btn primary" data-act="rtsApprove">${ic('check')}Aprovar</button>`:`<button class="btn primary" data-act="rtsSubmit">${ic('next')}Enviar para aprovação</button>`);
   }
   if(r.status===S_AGU){
-    return `<div class="panel rts-ap" data-ap="no"><div class="ph-row"><div><h2>Aguardando aprovação</h2><p class="hint" style="margin:0">Enviado por ${esc(r.enviadoPor||'—')} em ${fmt(r.enviadoEm)}. Enquanto aguarda, o RTS fica travado para edição.</p></div><div class="actions">${adm?`<button class="btn" data-act="rtsReturn">Devolver para ajustes</button><button class="btn primary" data-act="rtsApprove">${ic('check')}Aprovar e liberar</button>`:`<button class="btn" data-act="rtsReopen">Reabrir para edição</button>`}</div></div>${adm?'':'<p class="hint" style="margin:8px 0 0">Só o administrador pode aprovar.</p>'}</div>`;
+    return wrap('no',`<h2>Aguardando aprovação</h2><p class="hint" style="margin:0">Enviado por ${esc(r.enviadoPor||'—')} em ${fmt(r.enviadoEm)}. Enquanto aguarda, o RTS fica travado para edição.${adm?'':' Quem aprova: '+esc(q)+'.'}</p>`,
+      adm?`<button class="btn" data-act="rtsReturn">Reprovar</button><button class="btn primary" data-act="rtsApprove">${ic('check')}Aprovar</button>`:`<button class="btn" data-act="rtsReopen">Cancelar envio e editar</button>`);
   }
-  return `<div class="panel rts-ap" data-ap="yes"><div class="ph-row"><div><h2>Aprovado</h2><p class="hint" style="margin:0">Aprovado por <b>${esc(r.aprovadoPor)}</b> em ${fmt(r.aprovadoEm)}. O PDF sai com esta aprovação.</p></div><button class="btn" data-act="rtsReopen">Reabrir para edição</button></div></div>`;
+  return wrap('yes',`<h2>Aprovado</h2><p class="hint" style="margin:0">Aprovado por <b>${esc(r.aprovadoPor)}</b> em ${fmt(r.aprovadoEm)}. O PDF sai com esta aprovação.${adm?'':' Só '+esc(q)+' reabre.'}</p>`,
+    adm?`<button class="btn" data-act="rtsReopen">Reabrir para edição</button>`:'');
 }
 MX.views.rtsEdit=function(){
   const r=curR();if(!r)return `<div class="empty"><h2>RTS não encontrado</h2><button class="btn primary" data-act="rtsHome">Voltar à lista</button></div>`;
@@ -308,7 +319,7 @@ MX.views.rtsEdit=function(){
   const sug=(CAT().RTS_TESTES_SUGESTOES||[]).filter(t=>!r.montagem.etapas.some(a=>a.t===t));
   const obsLib=OBSB().filter(o=>!r.observacoes.some(x=>x.titulo===o.titulo&&x.texto===o.texto));
   const hasMat=r.anexos.some(a=>a.tipo==='materiais');
-  return `<div class="rts-edit"><div class="ph"><button class="btn ghost" data-act="rtsHome">${ic('back')}Todos os RTS</button><div class="ph-row"><div><h1>RTS ${esc(r.numero)||'(sem nº)'} <span class="badge ${rCls[r.status]}" style="vertical-align:middle">${esc(r.status)}</span></h1><p id="rts-state" class="hint" style="margin:0">${stateHTML(r)}</p></div><div class="actions"><button class="btn" data-act="rtsPdfOpen">${ic('print')}Visualizar</button>${window.npLevarBtn?npLevarBtn('rts'):''}<button class="btn primary" data-act="rtsPdf">${ic('download')}Baixar PDF</button></div></div></div>${conflict}${approvalBar(r)}${dl}
+  return `<div class="rts-edit"><div class="ph"><button class="btn ghost" data-act="rtsHome">${ic('back')}Todos os RTS</button><div class="ph-row"><div><h1>RTS ${esc(r.numero)||'(sem nº)'} <span class="badge ${rCls[r.status]}" style="vertical-align:middle">${esc(r.status)}</span></h1><p id="rts-state" class="hint" style="margin:0">${stateHTML(r)}</p></div><div class="actions"><button class="btn" data-act="rtsPdfOpen">${ic('print')}Visualizar</button>${window.custoBtn?custoBtn(r):''}${window.npLevarBtn?npLevarBtn('rts'):''}<button class="btn primary" data-act="rtsPdf">${ic('download')}Baixar PDF</button></div></div></div>${conflict}${approvalBar(r)}${dl}
 <fieldset class="rts-fs" ${lock?'disabled':''}>
 <div class="panel"><h2>Dados do relatório</h2><div class="grid g4">${fx('Proposta nº','numero',r.numero,{keep:true,ph:'1135-26'})}${fx('Cliente','cliente',r.cliente,{cls:'sp2'})}${fx('Emissão','emissao',r.emissao,{type:'date'})}</div><div class="grid g4">${fx('Hora','hora',r.hora,{type:'time'})}${fx('Elaborado por','elaboradoPor',r.elaboradoPor)}${fx('Prazo (data limite)','prazoData',r.prazoData,{type:'date'})}${fx('Finalidade (status do documento)','statusDoc',r.statusDoc,{list:'dl-sdoc'})}</div></div>
 ${window.cmpPanel?cmpPanel(r):''}<div class="panel"><h2>Produto</h2><div class="grid g4">${fx('Código','codigoProduto',r.codigoProduto,{keep:true})}${fx('Produto','produto',r.produto,{cls:'sp2',ph:'Ex.: VÁLVULA BORBOLETA DE DUPLO DISCO/SEDE – DN 2600'})}${fx('Quantidade','quantidade',r.quantidade,{keep:true})}</div>${models.length?`<div class="rts-model"><div class="field"><label for="rts-model">Carregar POS de um projeto</label><select id="rts-model"><option value="">Selecione o modelo…</option>${models.map(m=>`<option value="${esc(m.id)}" ${m.id===r.modeloId?'selected':''}>${esc(m.name)}${m.dn?' — DN '+esc(m.dn):''}</option>`).join('')}</select></div><button class="btn" data-act="rtsLoadModel">${ic('plus')}Carregar POS</button></div><p class="hint">Só adiciona as POS que ainda não estão na lista; nada do que você já escreveu é apagado.</p>`:''}</div>
@@ -444,6 +455,11 @@ async function applyLaudo(r,plan,o){
   return out;
 }
 const swap=(a,i,j)=>{if(j<0||j>=a.length)return false;[a[i],a[j]]=[a[j],a[i]];return true};
+const rtsMiss=r=>{
+  const m=[emp(r.numero)&&'Proposta nº',emp(r.cliente)&&'Cliente',emp(r.produto)&&'Produto',emp(r.objetivo)&&'Objetivo',!r.pos.length&&!r.geral.etapas.length&&'Escopo'].filter(Boolean);
+  if(m.length)toast('Falta preencher: '+m.join(', ')+'.',{ms:6000});
+  return m.length>0;
+};
 const clearApproval=r=>{r.aprovadoPor='';r.aprovadoEm='';r.aprovadoPorId='';r.enviadoPor='';r.enviadoEm=''};
 const need=(r,msg)=>{if(locked(r)){toast(msg||'RTS travado: reabra para edição.');return false}return true};
 Object.assign(MX.act,{
@@ -486,26 +502,27 @@ Object.assign(MX.act,{
   /* ---- aprovação ---- */
   rtsSubmit(){
     const r=curR();if(!r)return;
-    const miss=[emp(r.numero)&&'Proposta nº',emp(r.cliente)&&'Cliente',emp(r.produto)&&'Produto',emp(r.objetivo)&&'Objetivo',!r.pos.length&&!r.geral.etapas.length&&'Escopo'].filter(Boolean);
-    if(miss.length){toast('Falta preencher: '+miss.join(', ')+'.',{ms:6000});return}
+    if(rtsMiss(r))return;
     r.status=S_AGU;r.enviadoPor=S.user?.name||'';r.enviadoEm=new Date().toISOString();r.motivoDevolucao='';r.devolvidoPor='';
     touchR(r);renderMain();scrollTo(0,0);toast('Enviado para aprovação.');
   },
   async rtsApprove(){
     const r=curR();if(!r)return;
-    if(!isAdminU()){toast('Só o administrador ou o gestor aprova.');return}
+    if(!canAp()){toast('Só '+(window.aprovQuem?aprovQuem():'quem tem permissão')+' aprova.');return}
+    if(rtsMiss(r))return;
     if(!await ask({title:`Aprovar e liberar o RTS ${r.numero||''}?`,body:`O PDF passará a sair com “Aprovado por ${S.user?.name||''}” e a data de agora. Para alterar depois, será preciso reabrir e aprovar de novo.`,ok:'Aprovar e liberar'}))return;
     r.status=S_APR;r.aprovadoPor=S.user?.name||'';r.aprovadoPorId=S.user?.id||'';r.aprovadoEm=new Date().toISOString();r.motivoDevolucao='';
     touchR(r);renderMain();toast('RTS aprovado.');
   },
   rtsReturn(){
     const r=curR();if(!r)return;
-    if(!isAdminU()){toast('Só o administrador ou o gestor devolve para ajustes.');return}
-    dialog(`<form class="dlg-body" data-submit="rtsReturn"><h2>Devolver para ajustes</h2><p>O RTS volta a rascunho e quem elaborou vê o motivo.</p><div class="field"><label for="rr-m">O que precisa ser ajustado</label><textarea id="rr-m" name="motivo" rows="4" data-keep-case required autofocus></textarea></div><div class="actions end"><button type="button" class="btn" data-act="closeDlg">Cancelar</button><button class="btn primary" type="submit">Devolver</button></div></form>`);
+    if(!canAp()){toast('Só '+(window.aprovQuem?aprovQuem():'quem tem permissão')+' reprova.');return}
+    dialog(`<form class="dlg-body" data-submit="rtsReturn"><h2>Reprovar RTS</h2><p>O RTS volta a rascunho e quem elaborou vê o motivo.</p><div class="field"><label for="rr-m">O que precisa ser ajustado</label><textarea id="rr-m" name="motivo" rows="4" data-keep-case required autofocus></textarea></div><div class="actions end"><button type="button" class="btn" data-act="closeDlg">Cancelar</button><button class="btn primary" type="submit">Reprovar</button></div></form>`);
   },
   async rtsReopen(){
     const r=curR();if(!r)return;
     const ap=r.status===S_APR;
+    if(ap&&!canAp()){toast('Só '+(window.aprovQuem?aprovQuem():'quem aprova')+' reabre um RTS aprovado.');return}
     if(!await ask({title:'Reabrir para edição?',body:ap?'A aprovação atual será perdida e o RTS precisará ser enviado e aprovado de novo.':'O envio para aprovação é cancelado e o RTS volta a rascunho.',ok:'Reabrir'}))return;
     r.status=S_RAS;clearApproval(r);touchR(r);renderMain();toast('RTS reaberto como rascunho.');
   },
@@ -584,10 +601,16 @@ Object.assign(MX.act,{
           a.itens.push({id:uid('RI'),img:{id,name:f.name||'imagem.jpg'},descricao:'',status:'',obs:''});ok++}
         catch(e){console.error(e);fail++}
       }
-      t.close();if(ok)touchR(r);renderMain();
+      const first=ok?a.itens[a.itens.length-ok]:null;
+      t.close();if(ok)touchR(r);renderMain();if(first){const e=document.getElementById('s-'+first.id);e&&e.focus({preventScroll:false})}
       toast(`${ok?plural(ok,'imagem adicionada','imagens adicionadas'):'Nenhuma imagem adicionada'}${fail?`; ${plural(fail,'arquivo não entrou','arquivos não entraram')}`:''}.`);
     };
     i.click();
+  },
+  rtsImgMv(el){
+    const r=curR();if(!need(r))return;const a=r.anexos.find(x=>x.id===el.dataset.aid);if(!a)return;
+    const i=a.itens.findIndex(x=>x.id===el.dataset.id);if(i<0)return;
+    if(swap(a.itens,i,i+ +el.dataset.dir)){touchR(r);renderMain();const e=document.querySelector(`[data-foto="${el.dataset.id}"]`);e&&e.scrollIntoView({block:'nearest'})}
   },
   async rtsImgRm(el){
     const r=curR();if(!need(r))return;const a=r.anexos.find(x=>x.id===el.dataset.aid);if(!a)return;
@@ -610,6 +633,7 @@ Object.assign(MX.act,{
     try{const r=curR(),out=await buildRtsPdf(r);saveBytes(out.bytes,out.fileName);toast(r.status===S_APR?'PDF gerado.':'PDF gerado com marca de “não aprovado”.')}catch(e){console.error(e);toast('Não foi possível gerar o PDF.')}
     finally{b.removeAttribute?.('aria-busy')}
   },
+  rtsPdfRow(el){S.rtsId=el.dataset.id;return MX.act.rtsPdfOpen(el)},
   async rtsPdfOpen(el){
     const win=window.open('','_blank');if(win)win.opener=null;
     const b=el.closest?.('button')||el;b.setAttribute?.('aria-busy','true');
@@ -656,10 +680,10 @@ Object.assign(MX.sub,{
     closeDialog(f.closest('dialog'));openR(r.id);
   },
   rtsReturn(f){
-    const r=curR();if(!r||!isAdminU())return;
+    const r=curR();if(!r||!canAp())return;
     const m=f.elements.motivo.value.trim();if(!m){toast('Descreva o ajuste necessário.');return}
     r.status=S_RAS;clearApproval(r);r.motivoDevolucao=m;r.devolvidoPor=S.user?.name||'';r.devolucoes=(+r.devolucoes||0)+1;   // contador para o painel de gestão
-    touchR(r);closeDialog(f.closest('dialog'));renderMain();toast('RTS devolvido para ajustes.');
+    touchR(r);closeDialog(f.closest('dialog'));renderMain();toast('RTS reprovado e devolvido para ajustes.');
   }
 });
 Object.assign(MX.inp,{
@@ -698,6 +722,28 @@ async function imgData(id){
     return{url:c.toDataURL('image/jpeg',.78),w:c.width,h:c.height};
   }catch{try{return{url:await blobToDataURL(rec.blob),w:4,h:3}}catch{return null}}
 }
+/* moldura de todas as páginas (cabeçalho com logo, título e bloco Tipo/Cód./Rev./Data; rodapé com paginação).
+   Compartilhada com o documento de custos (custos.js), que precisa sair com a mesma identidade visual do RTS. */
+function pdfFrame(doc,i,n,{logo,F,titulo,M=15,W=180,right}){
+  const pt=pdfTxt;
+  const rows=right||[['Tipo:',F.tipo],['Cód.:',F.codigo],['Rev.:',F.rev],['Data:',fmtISO(F.data)]];
+    const hx=M,hy=10,hh=22,lw=34,rw=56;
+    doc.setDrawColor(0);doc.setLineWidth(.4);doc.rect(hx,hy,W,hh);doc.line(hx+lw,hy,hx+lw,hy+hh);doc.line(hx+W-rw,hy,hx+W-rw,hy+hh);doc.setLineWidth(.2);
+    if(logo){const pad=2,aw=lw-pad*2,ah=hh-pad*2;let w=aw,h=w/logo.ratio;if(h>ah){h=ah;w=h*logo.ratio}try{doc.addImage(logo.url,'PNG',hx+(lw-w)/2,hy+(hh-h)/2,w,h)}catch(e){console.error('logo no PDF',e)}}
+    else{doc.setFont('helvetica','bold');doc.setFontSize(14);doc.setTextColor(0);doc.text('MINC',hx+lw/2,hy+hh/2+2,{align:'center'})}
+    doc.setTextColor(0);doc.setFont('helvetica','bold');doc.setFontSize(12);doc.text(pt(titulo),hx+lw+(W-lw-rw)/2,hy+hh/2+1.5,{align:'center'});
+    doc.setFontSize(8);rows.forEach(([k,v],j)=>{
+      doc.setFont('helvetica','normal');doc.text(pt(k),hx+W-rw+3,hy+4.6+j*4.6);doc.setFont('helvetica','bold');doc.text(pt(v||'-'),hx+W-rw+16,hy+4.6+j*4.6);
+    });
+    doc.setDrawColor(150);doc.setLineWidth(.2);doc.line(M,283,M+W,283);
+    doc.setTextColor(60);doc.setFontSize(7.5);doc.setFont('helvetica','normal');
+    doc.text(pt(`${F.codigo}    REV:${F.rev||'-'}`),M,287);
+    doc.setFont('helvetica','bold');doc.text(`Página ${i} de ${n}`,M+W,287,{align:'right'});
+    doc.setFont('helvetica','normal');doc.setFontSize(6.8);
+    if(F.endereco)doc.text(pt(F.endereco),105,291,{align:'center'});
+    if(F.contato)doc.text(pt(F.contato),105,294.4,{align:'center'});
+}
+window.RtsPdfFrame=pdfFrame;
 async function buildRtsPdf(r){
   await pdfLib();
   const F=FORM(),{jsPDF}=window.jspdf,logo=await logoForPdf();
@@ -809,7 +855,7 @@ async function buildRtsPdf(r){
         return;
       }
       if(!a.itens.length){para('Sem imagens.',{gap:2});return}
-      const caption=it=>[it.descricao&&`Descrição: ${it.descricao}`,it.status&&`Status: ${it.status}`].filter(Boolean).join('\n\n');
+      const caption=it=>{const n=a.itens.indexOf(it)+1;return [`Foto ${n}`+(it.descricao?` — ${it.descricao}`:''),it.status].filter(Boolean).join('\n\n')};
       if(a.layout==='cheia'){
         for(const it of a.itens){
           const d=it.img&&imgs.get(it.img.id);
@@ -820,7 +866,7 @@ async function buildRtsPdf(r){
           const c=caption(it);if(c)para(c,{size:9,gap:4});else y+=3;
         }
       }else{
-        const body=a.itens.map(it=>['',pt(caption(it)||'-')]);
+        const body=a.itens.map(it=>['',pt(caption(it))]);
         doc.autoTable({theme:'grid',startY:y,styles:{font:'helvetica',fontSize:9,cellPadding:3,lineColor:[0,0,0],lineWidth:.2,textColor:[0,0,0],valign:'middle',minCellHeight:56},body,columnStyles:{0:{cellWidth:78},1:{cellWidth:'auto'}},margin:{left:M,right:M,top:TOP,bottom:27},rowPageBreak:'avoid',
           didDrawCell:data=>{
             if(data.section!=='body'||data.column.index!==0)return;
@@ -867,21 +913,7 @@ async function buildRtsPdf(r){
   const n=doc.getNumberOfPages(),mark=r.status===S_AGU?'AGUARDANDO APROVAÇÃO':'RASCUNHO';
   for(let i=1;i<=n;i++){
     doc.setPage(i);
-    const hx=M,hy=10,hh=22,lw=34,rw=56;
-    doc.setDrawColor(0);doc.setLineWidth(.4);doc.rect(hx,hy,W,hh);doc.line(hx+lw,hy,hx+lw,hy+hh);doc.line(hx+W-rw,hy,hx+W-rw,hy+hh);doc.setLineWidth(.2);
-    if(logo){const pad=2,aw=lw-pad*2,ah=hh-pad*2;let w=aw,h=w/logo.ratio;if(h>ah){h=ah;w=h*logo.ratio}try{doc.addImage(logo.url,'PNG',hx+(lw-w)/2,hy+(hh-h)/2,w,h)}catch(e){console.error('logo no PDF',e)}}
-    else{doc.setFont('helvetica','bold');doc.setFontSize(14);doc.setTextColor(0);doc.text('MINC',hx+lw/2,hy+hh/2+2,{align:'center'})}
-    doc.setTextColor(0);doc.setFont('helvetica','bold');doc.setFontSize(12);doc.text(pt(F.titulo),hx+lw+(W-lw-rw)/2,hy+hh/2+1.5,{align:'center'});
-    doc.setFontSize(8);[['Tipo:',F.tipo],['Cód.:',F.codigo],['Rev.:',F.rev],['Data:',fmtISO(F.data)]].forEach(([k,v],j)=>{
-      doc.setFont('helvetica','normal');doc.text(pt(k),hx+W-rw+3,hy+4.6+j*4.6);doc.setFont('helvetica','bold');doc.text(pt(v||'-'),hx+W-rw+16,hy+4.6+j*4.6);
-    });
-    doc.setDrawColor(150);doc.setLineWidth(.2);doc.line(M,283,M+W,283);
-    doc.setTextColor(60);doc.setFontSize(7.5);doc.setFont('helvetica','normal');
-    doc.text(pt(`${F.codigo}    REV:${F.rev||'-'}`),M,287);
-    doc.setFont('helvetica','bold');doc.text(`Página ${i} de ${n}`,M+W,287,{align:'right'});
-    doc.setFont('helvetica','normal');doc.setFontSize(6.8);
-    if(F.endereco)doc.text(pt(F.endereco),105,291,{align:'center'});
-    if(F.contato)doc.text(pt(F.contato),105,294.4,{align:'center'});
+    pdfFrame(doc,i,n,{logo,F,titulo:F.titulo,M,W});
     if(!approved){   // marca d'água: documento ainda não aprovado no app
       try{doc.saveGraphicsState();doc.setGState(new doc.GState({opacity:.11}));doc.setTextColor(0);doc.setFont('helvetica','bold');doc.setFontSize(r.status===S_AGU?46:78);doc.text(pt(mark),105,160,{align:'center',angle:45});doc.restoreGraphicsState()}catch(e){console.error('marca d\'água',e)}
     }
