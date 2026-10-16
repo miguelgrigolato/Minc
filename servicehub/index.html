@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+  <meta name="theme-color" content="#0b0d10">
+  <meta name="color-scheme" content="light dark">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="description" content="MINC ServiceHub - peritagem, RTS e gestão da engenharia de serviço">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="MINC ServiceHub">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/png" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="preload" href="fonts/inter-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="movimento.css">
+  <link rel="stylesheet" href="modulos.css">
+  <title>MINC ServiceHub</title>
+  <script>try{document.documentElement.dataset.theme=localStorage.getItem('minc_theme')||'light'}catch(e){document.documentElement.dataset.theme='light'}</script>
+</head>
+<body>
+  <div id="app">
+    <div class="topbar"><div class="brand"><span class="wm-b">MINC</span><span class="brand-sub">ServiceHub</span></div></div>
+    <div class="boot" aria-busy="true" aria-label="Carregando"><div><div class="sk"></div><div class="sk"></div><div class="sk"></div></div><div class="sk big"></div></div>
+  </div>
+  <div id="toasts" aria-live="polite"></div>
+  <noscript>Este aplicativo precisa de JavaScript para funcionar.</noscript>
+  <script src="config.js" defer></script>
+  <script src="catalogo.js" defer></script>
+  <script src="vendor/supabase.js" defer></script>
+  <script src="vendor/xlsx.mini.min.js" defer></script>
+  <script src="autocorrect.js" defer></script>
+  <script src="ajustes.js" defer></script>
+  <script src="servicos.js" defer></script>
+  <script src="materiais.js" defer></script>
+  <script src="fichas.js" defer></script>
+  <script src="nomus.js" defer></script>
+  <script src="nomusproc.js" defer></script>
+  <script src="painel.js" defer></script>
+  <script src="comparar.js" defer></script>
+  <script src="modelos.js" defer></script>
+  <script src="rts.js" defer></script>
+  <script src="nomuscat.js" defer></script>
+  <script src="cadastros.js" defer></script>
+  <script src="avisos.js" defer></script>
+  <script src="ajuda.js" defer></script>
+  <script src="app.js" defer></script>
+  <script src="movimento.js" defer></script>
+</body>
+</html>
