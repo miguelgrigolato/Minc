@@ -207,3 +207,20 @@ ul.hist li span{color:var(--muted);font-size:14px}
 .mdl-c2 input,.mdl-c2 select{font-size:13px}
 .mdl-mat{color:var(--muted)}
 @media(max-width:720px){.mdl-c2{grid-template-columns:1fr 1fr}.mdl-c2 select,.mdl-mat{grid-column:1/-1}}
+
+/* v5.28.0 — balão de atividades do RTS e importação do laudo */
+.rts-bal{position:fixed;z-index:60;display:flex;flex-direction:column;max-height:min(70vh,540px);background:var(--surface);color:var(--text);border:2px solid var(--ink);border-radius:6px;box-shadow:0 12px 36px rgba(0,0,0,.28)}
+.rts-bal.sheet{left:0;right:0;bottom:0;top:auto;width:auto;max-height:80vh;border-radius:12px 12px 0 0}
+.rts-bal-h{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;padding:12px 14px 8px;border-bottom:1px solid var(--line)}
+.rts-bal-h b{display:block;font-size:14px;word-break:break-word}.rts-bal-h small{color:var(--muted)}
+.rts-bal-q{margin:8px 14px 4px;min-height:40px}
+.rts-bal-b{overflow:auto;padding:4px 14px 8px;flex:1}
+.rts-bal-g{margin:6px 0;border:1px solid var(--line);border-radius:4px;background:var(--surface-2)}
+.rts-bal-g>summary{cursor:pointer;font-weight:700;padding:9px 10px}
+.rts-bal-i{display:flex;gap:10px;align-items:flex-start;padding:8px 10px;border-top:1px solid var(--line);cursor:pointer;line-height:1.35;background:var(--surface)}
+.rts-bal-i input{margin-top:3px;width:20px;height:20px;flex:none}
+.rts-bal-i[hidden],.rts-bal-g[hidden]{display:none}
+.rts-bal-f{display:flex;justify-content:flex-end;gap:8px;padding:10px 14px;border-top:1px solid var(--line)}
+.rts-laudo-tag{display:flex;gap:6px;align-items:center;margin:2px 0 6px;font-size:13px;color:var(--muted)}
+.rts-lg-list{margin:8px 0 10px;padding-left:18px}.rts-lg-list li{margin-bottom:6px}
+.rts-lg-o{display:flex;gap:8px;align-items:flex-start;margin:6px 0}.rts-lg-o input{width:20px;height:20px;flex:none;margin-top:2px}

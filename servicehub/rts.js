@@ -1,4 +1,4 @@
-/* MINC · Peritagem — Módulo RTS (Relatório Técnico de Serviço)  (v5.12.0)
+/* MINC · Peritagem — Módulo RTS (Relatório Técnico de Serviço)  (v5.12.0 · v5.28.0: balão de atividades, sem formato de título/pintura, texto por POS, importação do laudo do cliente)
    Independente das peritagens: o RTS nasce na proposta, muitas vezes antes de ver a válvula.
    - Lista de RTS (aba "RTS" no topo), editor em seções e PDF no layout R-MINC-060-RTS-PT (capa, sumário, rodapé).
    - Escopo por POS: o usuário escolhe a providência e as atividades padrão entram prontas (catalogo.js > RTS_BIBLIOTECA).
@@ -45,8 +45,8 @@ function normRts(r){
   if(LEGACY_STATUS[r.status])r.status=LEGACY_STATUS[r.status];
   r.status=RSTATUS.includes(r.status)?r.status:S_RAS;
   for(const k of ['numero','cliente','produto','codigoProduto','quantidade','emissao','hora','elaboradoPor','statusDoc','prazoData','prazoDias','prazoRef','modeloId','modeloNome','objetivo','notaLocal','validade','garantia','notaEmbalagem','aprovadoPor','aprovadoEm','aprovadoPorId','enviadoPor','enviadoEm','motivoDevolucao'])if(r[k]==null)r[k]='';
-  r.tituloModo=r.tituloModo==='nome'?'nome':'pos';
-  r.pintura=Number.isInteger(r.pintura)&&r.pintura>=0&&r.pintura<PINT().length?r.pintura:0;
+  r.tituloModo='pos';   // formato único do título: POS. 02 - CORPO – RECUPERAR.
+  r.pintura=0;          // um padrão de pintura só (o da biblioteca); o seletor foi retirado para não confundir
   r.geral=Object.assign({titulo:'CONJUNTO GERAL –',sub:'',etapas:[]},r.geral);r.geral.etapas=Array.isArray(r.geral.etapas)?r.geral.etapas:[];
   r.montagem=Object.assign({titulo:CAT().RTS_MONTAGEM_TITULO||'MONTAGEM DO CONJUNTO GERAL – TESTES – PINTURA',etapas:[]},r.montagem);r.montagem.etapas=Array.isArray(r.montagem.etapas)?r.montagem.etapas:[];
   r.pos=(Array.isArray(r.pos)?r.pos:[]).map(p=>Object.assign({id:uid('RP'),pos:'',nome:'',qtd:'',unid:'',provs:[],titulo:'',atividades:[],nota:''},p,{provs:Array.isArray(p.provs)?p.provs:[],atividades:Array.isArray(p.atividades)?p.atividades:[]}));
@@ -230,18 +230,15 @@ const fx=(label,k,v,o={})=>`<div class="field ${o.cls||''}"><label for="rf-${k}"
 const ta=(label,k,v,rows=3)=>`<div class="field"><label for="rf-${k}">${label}</label><textarea id="rf-${k}" rows="${rows}" class="rts-ta" data-inp="rtsF" data-k="${k}" data-keep-case>${esc(v)}</textarea></div>`;
 const setK=(r,k,v)=>{const p=k.split('.'),l=p.pop();const o=p.reduce((a,x)=>a[x],r);o[l]=v};
 
-/* numeração contínua dos itens do escopo (como no RTS em Word: 1…N atravessa todas as seções) */
+/* numeração dos itens do escopo: reinicia em 1 em cada bloco (conjunto geral, cada POS, montagem) */
 function numbering(r){
-  const m=new Map();let n=0;
-  r.geral.etapas.forEach(a=>m.set(a.id,++n));
-  r.pos.forEach(p=>p.atividades.forEach(a=>m.set(a.id,++n)));
-  r.montagem.etapas.forEach(a=>m.set(a.id,++n));
+  const m=new Map(),seq=l=>{let n=0;l.forEach(a=>m.set(a.id,++n))};
+  seq(r.geral.etapas);r.pos.forEach(p=>seq(p.atividades));seq(r.montagem.etapas);
   return m;
 }
 const posHeading=(p,r)=>{
   if(!emp(p.titulo))return p.titulo;
   const nome=emp(p.nome)?'(sem nome)':p.nome;
-  if(r&&r.tituloModo==='nome')return nome.toUpperCase();
   const base=emp(p.pos)?nome:`POS. ${p.pos} - ${nome}`;
   return (base+(p.provs.length?' – '+p.provs.map(verbo).join(' – '):'')+'.').toUpperCase();
 };
@@ -253,21 +250,25 @@ function actRows(r,key,nums){
   const l=actList(r,key)||[];
   return l.map(a=>`<div class="rts-act"><span class="rts-n">${nums.get(a.id)||''}</span><textarea class="rts-ta" rows="1" aria-label="Atividade" data-inp="rtsAct" data-list="${esc(key)}" data-id="${esc(a.id)}" data-keep-case>${esc(a.t)}</textarea><div class="rts-mv"><button class="iconb" data-act="rtsActMv" data-list="${esc(key)}" data-id="${esc(a.id)}" data-dir="-1" aria-label="Subir">${ic('up')}</button><button class="iconb" data-act="rtsActMv" data-list="${esc(key)}" data-id="${esc(a.id)}" data-dir="1" aria-label="Descer">${ic('chev')}</button><button class="iconb" data-act="rtsActRm" data-list="${esc(key)}" data-id="${esc(a.id)}" aria-label="Remover atividade">${ic('trash')}</button></div></div>`).join('')||'<p class="hint">Nenhuma atividade nesta seção.</p>';
 }
+/* grupos de atividades sugeridas para o balão (nada entra sozinho: o funcionário marca o que vale) */
 function libGroups(r,p){
-  const have=new Set(p.atividades.map(a=>a.t)),g=[];
-  const main=dedupe(expand(r,p.provs.flatMap(v=>BIB()[v]||[]))).filter(t=>!have.has(t));
-  if(main.length)g.push(['Da providência escolhida',main]);
-  for(const [k,l] of Object.entries(BIBX())){const f=expand(r,l).filter(t=>!have.has(t)&&!main.includes(t));if(f.length)g.push([k,f])}
+  const have=new Set(p.atividades.map(a=>a.t)),g=[],used=new Set();
+  for(const v of p.provs){
+    const l=dedupe(expand(r,BIB()[v]||[])).filter(t=>!have.has(t)&&!used.has(t));
+    l.forEach(t=>used.add(t));if(l.length)g.push([`${v} — atividades padrão`,l]);
+  }
+  for(const [k,l] of Object.entries(BIBX())){const f=expand(r,l).filter(t=>!have.has(t)&&!used.has(t));if(f.length)g.push([k,f])}
   return g;
 }
 function posCard(r,p,i,nums){
-  const groups=libGroups(r,p);
   return `<article class="rts-pos"><div class="rts-ph"><div class="field rts-pos-no"><label for="pp-${p.id}">POS.</label><input id="pp-${p.id}" value="${esc(p.pos)}" data-inp="rtsPos" data-id="${esc(p.id)}" data-k="pos" autocomplete="off"></div><div class="field rts-pos-nm"><label for="pn-${p.id}">Componente</label><input id="pn-${p.id}" value="${esc(p.nome)}" data-inp="rtsPos" data-id="${esc(p.id)}" data-k="nome" autocomplete="off"></div><div class="rts-mv"><button class="iconb" data-act="rtsPosMv" data-id="${esc(p.id)}" data-dir="-1" aria-label="Subir POS">${ic('up')}</button><button class="iconb" data-act="rtsPosMv" data-id="${esc(p.id)}" data-dir="1" aria-label="Descer POS">${ic('chev')}</button><button class="iconb" data-act="rtsPosRm" data-id="${esc(p.id)}" aria-label="Remover POS">${ic('trash')}</button></div></div>
-<div class="chips fl rts-provs" role="group" aria-label="Providência">${PROVS().map(v=>`<button class="chip ${p.provs.includes(v)?'on':''}" data-act="rtsProv" data-id="${esc(p.id)}" data-v="${v}" aria-pressed="${p.provs.includes(v)}">${v}</button>`).join('')}</div>
+${p.laudo?`<p class="rts-laudo-tag">${ic('doc')}Do laudo do cliente: ${esc(p.laudo)}</p>`:''}
+<div class="chips fl rts-provs" id="prov-${esc(p.id)}" role="group" aria-label="Providência">${PROVS().map(v=>`<button class="chip ${p.provs.includes(v)?'on':''}" data-act="rtsProv" data-id="${esc(p.id)}" data-v="${v}" aria-pressed="${p.provs.includes(v)}">${v}</button>`).join('')}</div>
 <div class="rts-title" data-prev="${esc(p.id)}">${esc(posHeading(p,r))}</div>
 ${actRows(r,p.id,nums)}
-<div class="actions rts-addrow">${groups.length?`<select aria-label="Adicionar da biblioteca" data-chg="rtsLib" data-id="${esc(p.id)}"><option value="">+ Da biblioteca de atividades…</option>${groups.map(([n,l])=>`<optgroup label="${esc(n)}">${l.map(t=>`<option value="${esc(t)}">${esc(t.length>90?t.slice(0,87)+'…':t)}</option>`).join('')}</optgroup>`).join('')}</select>`:''}<button class="btn" data-act="rtsActAdd" data-list="${esc(p.id)}">${ic('plus')}Atividade</button>${p.provs.length&&p.atividades.length?`<button class="btn ghost" data-act="rtsReload" data-id="${esc(p.id)}">Recarregar padrão</button>`:''}</div>
-<details class="rts-more"><summary>Mais opções (título e nota)</summary><div class="field"><label for="pt-${p.id}">Título no documento <span class="muted">(deixe vazio para gerar automático)</span></label><input id="pt-${p.id}" value="${esc(p.titulo)}" data-inp="rtsPos" data-id="${esc(p.id)}" data-k="titulo" autocomplete="off" placeholder="${esc(posHeading({...p,titulo:''},r))}"></div><div class="field"><label for="pnota-${p.id}">NOTA <span class="muted">(opcional, aparece depois das atividades)</span></label><textarea id="pnota-${p.id}" rows="2" class="rts-ta" data-inp="rtsPos" data-id="${esc(p.id)}" data-k="nota" data-keep-case>${esc(p.nota)}</textarea></div></details></article>`;
+<div class="actions rts-addrow"><button class="btn" data-act="rtsPick" data-id="${esc(p.id)}">${ic('check')}Escolher atividades</button><button class="btn" data-act="rtsActAdd" data-list="${esc(p.id)}">${ic('plus')}Atividade</button></div>
+<div class="field" style="margin-top:10px"><label for="pnota-${p.id}">Texto desta POS <span class="muted">(opcional — aparece como NOTA depois das atividades)</span></label><textarea id="pnota-${p.id}" rows="2" class="rts-ta" data-inp="rtsPos" data-id="${esc(p.id)}" data-k="nota" data-keep-case>${esc(p.nota)}</textarea></div>
+<details class="rts-more"><summary>Mais opções (título)</summary><div class="field"><label for="pt-${p.id}">Título no documento <span class="muted">(deixe vazio para gerar automático)</span></label><input id="pt-${p.id}" value="${esc(p.titulo)}" data-inp="rtsPos" data-id="${esc(p.id)}" data-k="titulo" autocomplete="off" placeholder="${esc(posHeading({...p,titulo:''},r))}"></div></details></article>`;
 }
 function matRows(r){
   return r.materiais.map(m=>`<div class="rts-mat"><input aria-label="Descrição" value="${esc(m.desc)}" data-inp="rtsMat" data-id="${esc(m.id)}" data-k="desc" autocomplete="off"><input aria-label="Unidade" value="${esc(m.unid)}" data-inp="rtsMat" data-id="${esc(m.id)}" data-k="unid" data-keep-case autocomplete="off"><input aria-label="Quantidade" value="${esc(m.qtd)}" data-inp="rtsMat" data-id="${esc(m.id)}" data-k="qtd" inputmode="decimal" data-keep-case autocomplete="off"><button class="iconb" data-act="rtsMatRm" data-id="${esc(m.id)}" aria-label="Remover item">${ic('trash')}</button></div>`).join('')||'<p class="hint">Sem itens. Marque POS como Substituir ou Fabricar e use “Atualizar a partir das POS”.</p>';
@@ -314,7 +315,7 @@ ${window.cmpPanel?cmpPanel(r):''}<div class="panel"><h2>Produto</h2><div class="
 <div class="panel"><h2>Objetivo</h2>${ta('Texto do objetivo','objetivo',r.objetivo,4)}${ta('Nota do local do serviço','notaLocal',r.notaLocal,2)}</div>
 <div class="panel"><div class="ph-row"><div><h2>Seções adicionais</h2><p class="hint" style="margin:0">Textos livres entre o Objetivo e o Escopo (ex.: Relatório de Delineamento Contratual, “Serão demandados da Minc”). Linhas que começam com “- ” viram tópicos.</p></div><button class="btn" data-act="rtsLAdd" data-list="extras">${ic('plus')}Seção</button></div>${listBlock(r,'extras',{label:'Título da seção',rows:6})||'<p class="hint" style="margin-top:12px">Nenhuma seção adicional.</p>'}</div>
 <div class="panel"><h2>Escopo — Conjunto geral</h2><div class="grid g2">${fx('Título da seção','geral.titulo',r.geral.titulo,{keep:true})}${fx('Subtítulo (válvula)','geral.sub',r.geral.sub)}</div>${actRows(r,'geral',nums)}<div class="actions"><button class="btn" data-act="rtsActAdd" data-list="geral">${ic('plus')}Etapa</button></div></div>
-<div class="panel"><div class="ph-row"><div><h2>Escopo — Componentes (POS)</h2><p class="hint" style="margin:0">Escolha a providência de cada POS: as atividades padrão entram prontas e você apaga o que não se aplica.</p></div><button class="btn" data-act="rtsPosAdd">${ic('plus')}POS</button></div><div class="grid g2" style="margin-top:12px"><div class="field"><label for="rts-tm">Formato do título de cada POS</label><select id="rts-tm" data-chg="rtsTitMode"><option value="pos" ${r.tituloModo==='pos'?'selected':''}>POS. 02 - CORPO – RECUPERAR.</option><option value="nome" ${r.tituloModo==='nome'?'selected':''}>CORPO (só o nome)</option></select></div><div class="field"><label for="rts-pt">Padrão de pintura (linha “pintura” das atividades)</label><select id="rts-pt" data-chg="rtsPint">${PINT().map((p,i)=>`<option value="${i}" ${i===r.pintura?'selected':''}>${esc(p.nome)}</option>`).join('')}</select></div></div>${r.pos.length?r.pos.map((p,i)=>posCard(r,p,i,nums)).join(''):'<p class="hint" style="margin-top:12px">Nenhuma POS. Adicione manualmente ou carregue de um projeto (em Produto).</p>'}</div>
+<div class="panel"><div class="ph-row"><div><h2>Escopo — Componentes (POS)</h2><p class="hint" style="margin:0">Marque a providência da POS e escolha, no balão, só as atividades que valem para esta válvula. Se o cliente mandou o laudo, importe-o: as POS, providências e atividades vêm do laudo.</p></div><div class="actions"><button class="btn" data-act="rtsLaudo">${ic('doc')}Importar laudo do cliente</button><button class="btn" data-act="rtsPosAdd">${ic('plus')}POS</button></div></div>${r.pos.length?r.pos.map((p,i)=>posCard(r,p,i,nums)).join(''):'<p class="hint" style="margin-top:12px">Nenhuma POS. Adicione manualmente ou carregue de um projeto (em Produto).</p>'}</div>
 <div class="panel"><h2>Escopo — Montagem, testes e pintura</h2>${fx('Título da seção','montagem.titulo',r.montagem.titulo,{keep:true})}${actRows(r,'mont',nums)}<div class="actions rts-addrow">${sug.length?`<select aria-label="Adicionar teste sugerido" data-chg="rtsTeste"><option value="">+ Testes e comissionamento sugeridos…</option>${sug.map(t=>`<option value="${esc(t)}">${esc(t.length>90?t.slice(0,87)+'…':t)}</option>`).join('')}</select>`:''}<button class="btn" data-act="rtsActAdd" data-list="mont">${ic('plus')}Etapa</button></div>${ta('Nota de embalagem (opcional)','notaEmbalagem',r.notaEmbalagem,3)}</div>
 <div class="panel"><div class="ph-row"><div><h2>Observações técnicas</h2><p class="hint" style="margin:0">Escolha da biblioteca o que vale para este cliente; edite o texto à vontade. A numeração (Obs.1, Obs.2…) é automática.</p></div><div class="actions rts-addrow">${obsLib.length?`<select aria-label="Adicionar observação da biblioteca" data-chg="rtsObsLib"><option value="">+ Da biblioteca…</option>${obsLib.map(o=>`<option value="${OBSB().indexOf(o)}">${esc(o.nome)}</option>`).join('')}</select>`:''}<button class="btn" data-act="rtsLAdd" data-list="observacoes">${ic('plus')}Em branco</button></div></div>${listBlock(r,'observacoes',{label:'Título',rows:4})||'<p class="hint" style="margin-top:12px">Nenhuma observação.</p>'}</div>
 <div class="panel"><h2>Cronograma, validade e garantia</h2><div class="grid g4">${fx('Prazo estimado (dias)','prazoDias',r.prazoDias,{keep:true,ph:'90'})}${fx('Contado','prazoRef',r.prazoRef,{cls:'sp2',list:'dl-pref'})}</div>${ta('Validade da proposta','validade',r.validade,2)}<div class="field"><label for="rts-gar">Termo de garantia — modelo</label><select id="rts-gar" data-chg="rtsGar"><option value="">Escolher modelo…</option>${GAR().map((g,i)=>`<option value="${i}">${esc(g.nome)}</option>`).join('')}</select></div>${ta('Texto da garantia','garantia',r.garantia,5)}</div>
@@ -324,12 +325,52 @@ ${window.cmpPanel?cmpPanel(r):''}<div class="panel"><h2>Produto</h2><div class="
 };
 
 /* ============================== Ações ============================== */
-const openR=id=>{S.rtsId=id;S.screen='rtsEdit';S.anim='up';render();scrollTo(0,0);
+const openR=id=>{closeBalloon();S.rtsId=id;S.screen='rtsEdit';S.anim='up';render();scrollTo(0,0);
   const r=RTS.find(x=>x.id===id);if(r)Photos.load(r.id).then(()=>{if(S.screen==='rtsEdit'&&S.rtsId===id&&rtsImgRefs(r).length)renderMain()}).catch(()=>{})};
 const hasProv=(p,v)=>p.provs.includes(v);
-function addLibActs(r,p,prov){
-  const have=new Set(p.atividades.map(a=>a.t));
-  expand(r,BIB()[prov]||[]).forEach(t=>{if(!have.has(t)){p.atividades.push(act(t));have.add(t)}});
+/* ---- balão flutuante de atividades: checklist organizado; o funcionário marca o que vale e nada entra sozinho ---- */
+let BAL=null;
+function closeBalloon(){if(!BAL)return;BAL.el.remove();document.removeEventListener('keydown',BAL.key,true);document.removeEventListener('pointerdown',BAL.out,true);BAL=null}
+const fold3=v=>String(v??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+function openBalloon(anchor,pid){
+  closeBalloon();
+  const r=curR(),p=r&&r.pos.find(x=>x.id===pid);if(!p||locked(r))return;
+  const groups=libGroups(r,p);
+  if(!groups.length){toast(p.provs.length?'Todas as atividades sugeridas já estão na lista. Use “+ Atividade” para escrever outra.':'Escolha a providência acima ou use “+ Atividade”.');return}
+  const el=document.createElement('div');el.className='rts-bal';el.setAttribute('role','dialog');el.setAttribute('aria-label','Escolher atividades');
+  el.innerHTML=`<div class="rts-bal-h"><div><b>${esc(posHeading(p,r))}</b><small>Marque o que se aplica a esta válvula. Nada entra sozinho.</small></div><button type="button" class="iconb" data-bal="close" aria-label="Fechar">✕</button></div><input type="search" class="rts-bal-q" placeholder="Filtrar atividades…" aria-label="Filtrar atividades" data-keep-case autocomplete="off"><div class="rts-bal-b">${groups.map(([t,l],gi)=>`<details class="rts-bal-g" ${gi===0?'open':''}><summary>${esc(t)} <span class="muted">(${l.length})</span></summary>${l.map((x,i)=>`<label class="rts-bal-i"><input type="checkbox" data-gi="${gi}" data-i="${i}"><span>${esc(x)}</span></label>`).join('')}</details>`).join('')}</div><div class="rts-bal-f"><button type="button" class="btn ghost" data-bal="clear">Limpar</button><button type="button" class="btn primary" data-bal="add" disabled>Adicionar</button></div>`;
+  document.body.appendChild(el);
+  const small=innerWidth<720;
+  if(small)el.classList.add('sheet');
+  else{
+    const ar=(anchor||document.body).getBoundingClientRect(),w=Math.min(580,innerWidth-16);
+    el.style.width=w+'px';el.style.left=Math.max(8,Math.min(ar.left,innerWidth-w-8))+'px';
+    const h=Math.min(540,innerHeight*.7);let top=ar.bottom+8;
+    if(top+h>innerHeight-8)top=ar.top-h-8>=8?ar.top-h-8:Math.max(8,innerHeight-h-12);   // abaixo se couber; senão acima; senão encosta no rodapé
+    el.style.top=top+'px';el.style.maxHeight=h+'px';
+  }
+  const add=el.querySelector('[data-bal="add"]'),count=()=>{const n=el.querySelectorAll('input[type=checkbox]:checked').length;add.disabled=!n;add.textContent=n?`Adicionar (${n})`:'Adicionar'};
+  el.addEventListener('change',count);
+  el.querySelector('.rts-bal-q').addEventListener('input',e=>{
+    const q=fold3(e.target.value).trim();
+    el.querySelectorAll('.rts-bal-i').forEach(l=>{l.hidden=!!q&&!fold3(l.textContent).includes(q)});
+    el.querySelectorAll('.rts-bal-g').forEach(g=>{const any=[...g.querySelectorAll('.rts-bal-i')].some(l=>!l.hidden);g.hidden=!any;if(q&&any)g.open=true});
+  });
+  el.addEventListener('click',e=>{
+    const b=e.target.closest('[data-bal]');if(!b)return;
+    const k=b.dataset.bal;
+    if(k==='close'){closeBalloon();return}
+    if(k==='clear'){el.querySelectorAll('input[type=checkbox]').forEach(c=>c.checked=false);count();return}
+    if(k==='add'){
+      const r2=curR(),p2=r2&&r2.pos.find(x=>x.id===pid);if(!p2||locked(r2)){closeBalloon();return}
+      const have=new Set(p2.atividades.map(a=>a.t));let n=0;
+      el.querySelectorAll('input[type=checkbox]:checked').forEach(c=>{const t=groups[+c.dataset.gi][1][+c.dataset.i];if(!have.has(t)){p2.atividades.push(act(t));have.add(t);n++}});
+      closeBalloon();if(n){touchR(r2);renderMain();toast(`${plural(n,'atividade adicionada','atividades adicionadas')}.`)}
+    }
+  });
+  BAL={el,key:e=>{if(e.key==='Escape'){e.stopPropagation();closeBalloon()}},out:e=>{if(!el.contains(e.target)&&!e.target.closest('[data-act="rtsProv"],[data-act="rtsPick"]'))closeBalloon()}};
+  document.addEventListener('keydown',BAL.key,true);document.addEventListener('pointerdown',BAL.out,true);
+  setTimeout(()=>{const f=el.querySelector('.rts-bal-i input');f&&!small&&f.focus()},0);
 }
 function syncMats(r){
   let add=0;
@@ -341,11 +382,73 @@ function syncMats(r){
   }
   return add;
 }
+
+/* ---- importação do laudo/documentos do cliente (leitura em laudo.js) ---- */
+const lineSent=l=>/^[-–•]\s*/.test(l)?'- '+RtsLaudo.sentence(l.replace(/^[-–•]\s*/,'')):RtsLaudo.sentence(l);
+/* assunto de uma observação (para trocar a padrão da MINC pela do laudo quando o assunto é o mesmo) */
+function obsKey(t){
+  const f=fold3(t).replace(/[^a-z0-9 ]/g,' ').replace(/\s+/g,' ').trim();
+  if(/data ?book/.test(f))return'databook';if(/identific/.test(f))return'ident';if(/embal/.test(f))return'embal';if(/devol/.test(f))return'devol';
+  if(/teste/.test(f))return'teste';if(/pintura/.test(f))return'pint';if(/mao de obra/.test(f))return'mdo';return'';
+}
+function laudoResumo(lp){
+  const comps=lp.itens.flatMap(i=>i.comps),cnt={};comps.forEach(c=>cnt[c.prov]=(cnt[c.prov]||0)+1);
+  return {comps:comps.length,itens:lp.itens.filter(i=>i.comps.length).length,cnt,obs:lp.obsGerais.length};
+}
+function laudoPreview(r,plan){
+  const li=plan.map(p=>{
+    if(p.kind==='laudo'){const x=laudoResumo(p.lp),prov=Object.entries(x.cnt).map(([k,v])=>`${v} ${k.toLowerCase()}`).join(', ');
+      return `<li><b>${esc(p.d.name)}</b> — laudo ${esc(p.lp.numero||'')}${p.lp.cliente?' · '+esc(p.lp.cliente):''}${p.lp.tag?' · TAG '+esc(p.lp.tag):''}: <b>${plural(x.comps,'POS','POS')}</b> em ${plural(x.itens,'item','itens')} (${esc(prov)}); ${plural(x.obs,'observação geral','observações gerais')}.</li>`}
+    if(p.kind==='img')return `<li><b>${esc(p.d.name)}</b> — sem texto (desenho escaneado): ${plural(p.d.images.length,'imagem entra','imagens entram')} como anexo.</li>`;
+    return `<li><b>${esc(p.d.name)}</b> — texto de instruções (${p.text.length} caracteres): vira uma observação técnica.</li>`;
+  }).join('');
+  const has=k=>plan.some(p=>p.kind===k);
+  return `<ul class="rts-lg-list">${li}</ul>${has('laudo')?`<label class="rts-lg-o"><input type="checkbox" name="o-pos" checked> Criar as POS do laudo (com providência, quantidade e atividades)</label><label class="rts-lg-o"><input type="checkbox" name="o-obs" checked> Criar as observações gerais do laudo (data-book, identificação, embalagem, testes…)</label><label class="rts-lg-o"><input type="checkbox" name="o-subst" checked> Trocar as observações padrão da MINC pelas do laudo quando tratam do mesmo assunto (o laudo do cliente manda)</label><label class="rts-lg-o"><input type="checkbox" name="o-ficha" checked> Criar a seção com os dados do equipamento do laudo</label>`:''}<p class="hint" style="margin-top:8px">POS que já existem no RTS (mesmo nº e nome) são mantidas como estão.</p>`;
+}
+async function applyLaudo(r,plan,o){
+  const out={pos:0,ja:0,obs:0,extras:0,imgs:0,subst:0};
+  const have=new Set(r.pos.map(p=>String(p.pos).trim().toUpperCase()+'|'+String(p.nome).trim().toUpperCase()));
+  for(const it of plan){
+    if(it.kind==='laudo'){
+      const lp=it.lp,prim=lp.itens.find(x=>x.comps.length)||lp.itens[0];
+      if(emp(r.cliente)&&lp.cliente)r.cliente=lp.cliente;
+      if(emp(r.produto)&&prim)r.produto=[prim.desc,lp.tag?'TAG '+lp.tag:''].filter(Boolean).join(' – ');
+      if(emp(r.geral.sub)&&!emp(r.produto))r.geral.sub=r.produto;
+      if(o.ficha){
+        const linhas=[lp.numero&&`Laudo nº ${lp.numero}${lp.cliente?' ('+lp.cliente+')':''}`,lp.tag&&`TAG: ${lp.tag}`,lp.tecnico&&`Técnico responsável: ${lp.tecnico}`,'',...lp.itens.map(i=>`- Item ${i.n}: ${i.desc}${i.avaria?' — avaria: '+RtsLaudo.sentence(i.avaria):''}${i.recup?' — '+RtsLaudo.sentence(i.recup):''}${i.qtd?' — qtd. '+i.qtd:''}`),'',lp.ficha.split('\n').map(lineSent).join('\n')].filter(x=>typeof x==='string');
+        r.extras.push({id:uid('RE'),titulo:`DADOS DO EQUIPAMENTO — LAUDO ${lp.cliente||'DO CLIENTE'} Nº ${lp.numero||''}`.trim(),texto:linhas.join('\n').replace(/\n{3,}/g,'\n\n').trim()});out.extras++;
+      }
+      if(o.pos){
+        const multi=lp.itens.filter(x=>x.comps.length).length>1;
+        for(const item of lp.itens)for(const c of item.comps){
+          const pos=multi?`${item.n}.${c.nn}`:c.nn,nome=c.nome.toUpperCase(),k=pos.toUpperCase()+'|'+nome;
+          if(have.has(k)){out.ja++;continue}have.add(k);
+          r.pos.push({id:uid('RP'),pos,nome,qtd:c.qtd,unid:c.unid,provs:c.prov?[c.prov]:[],titulo:'',atividades:c.acts.map(a=>act(a.t)),nota:'',laudo:`laudo ${lp.numero||''} · item ${item.n} (${item.desc||''}) · nº ${c.nn}`.replace(/\s+/g,' ').trim()});out.pos++;
+        }
+      }
+      if(o.obs){
+        const keys=new Set(lp.obsGerais.map(x=>obsKey(x.titulo)).filter(Boolean));
+        if(o.subst){const before=r.observacoes.length;r.observacoes=r.observacoes.filter(x=>!keys.has(obsKey(x.titulo)));out.subst+=before-r.observacoes.length}
+        for(const ob of lp.obsGerais){r.observacoes.push({id:uid('RO'),titulo:ob.titulo,texto:ob.texto.split('\n').map(lineSent).join('\n')});out.obs++}
+      }
+    }else if(it.kind==='text'){
+      r.observacoes.push({id:uid('RO'),titulo:`Instruções do cliente — ${it.d.name.replace(/\.pdf$/i,'')}`.slice(0,120),texto:it.text.split('\n').map(lineSent).join('\n')});out.obs++;
+    }else{
+      const a={id:uid('RX'),titulo:`Desenho do cliente — ${it.d.name.replace(/\.pdf$/i,'')}`.slice(0,120),tipo:'imagens',layout:'cheia',itens:[]};
+      for(const im of it.d.images){const id=uid('IMG');
+        await Store.put('photos',{id,procId:r.id,blob:im.blob,name:im.name,at:Date.now()});Photos.urls.set(id,URL.createObjectURL(im.blob));
+        a.itens.push({id:uid('RI'),img:{id,name:im.name},descricao:'',status:'',obs:''});out.imgs++}
+      r.anexos.push(a);
+    }
+  }
+  return out;
+}
 const swap=(a,i,j)=>{if(j<0||j>=a.length)return false;[a[i],a[j]]=[a[j],a[i]];return true};
 const clearApproval=r=>{r.aprovadoPor='';r.aprovadoEm='';r.aprovadoPorId='';r.enviadoPor='';r.enviadoEm=''};
 const need=(r,msg)=>{if(locked(r)){toast(msg||'RTS travado: reabra para edição.');return false}return true};
 Object.assign(MX.act,{
   rtsHome(){
+    closeBalloon();
     if(window.Settings&&!Settings.rtsOn()){toast('A aba RTS está desligada. O administrador liga em Administração > Configurações.');return}
     if(S.screen==='rts'){scrollTo({top:0,behavior:RM()?'auto':'smooth'});return}
     RtsSave.flush();S.id=null;S.errs=null;S.screen='rts';S.anim='up';render();scrollTo(0,0);
@@ -412,6 +515,10 @@ Object.assign(MX.act,{
     const n=loadModelPos(r,m);touchR(r);renderMain();
     toast(n?`${plural(n,'POS carregada','POS carregadas')} do projeto.`:'Todas as POS deste projeto já estão na lista.');
   },
+  rtsLaudo(){
+    const r=curR();if(!need(r))return;
+    dialog(`<form class="dlg-body" data-submit="rtsLaudo" data-step="0"><h2>Importar documentos do cliente</h2><p>Escolha o <b>laudo</b> (PDF) e, se vierem junto, as <b>instruções ao fornecedor</b> e o <b>desenho</b>. O laudo é lido e vira POS (com providência, quantidade e atividades do próprio laudo), observações e dados do equipamento. Desenho escaneado entra como anexo de imagem. Nada do que já está no RTS é apagado.</p><div class="field"><label for="lg-f">Arquivos PDF</label><input id="lg-f" name="f" type="file" accept=".pdf,application/pdf" multiple required></div><div id="lg-prev" class="hint" aria-live="polite"></div><div class="actions end"><button type="button" class="btn" data-act="closeDlg">Cancelar</button><button class="btn primary" type="submit" id="lg-go">Ler documentos</button></div></form>`);
+  },
   rtsPosAdd(){const r=curR();if(!need(r))return;r.pos.push({id:uid('RP'),pos:'',nome:'',qtd:'',unid:'',provs:[],titulo:'',atividades:[],nota:''});touchR(r);renderMain();const n=document.getElementById('pp-'+r.pos[r.pos.length-1].id);n&&n.focus()},
   rtsPosRm(el){
     const r=curR();if(!need(r))return;const i=r.pos.findIndex(p=>p.id===el.dataset.id);if(i<0)return;
@@ -421,15 +528,11 @@ Object.assign(MX.act,{
   rtsPosMv(el){const r=curR();if(!need(r))return;const i=r.pos.findIndex(p=>p.id===el.dataset.id);if(swap(r.pos,i,i+ +el.dataset.dir)){touchR(r);renderMain()}},
   rtsProv(el){
     const r=curR(),p=r.pos.find(x=>x.id===el.dataset.id),v=el.dataset.v;if(!p||!need(r))return;
-    if(hasProv(p,v))p.provs=p.provs.filter(x=>x!==v);
-    else{p.provs=PROVS().filter(x=>x===v||hasProv(p,x));if(!p.atividades.length||p.atividades.every(a=>emp(a.t)))addLibActs(r,p,v)}   // lista vazia: entram as atividades padrão; com texto já escrito, nada é mexido
-    touchR(r);renderMain();
+    if(hasProv(p,v)){p.provs=p.provs.filter(x=>x!==v);touchR(r);closeBalloon();renderMain();return}
+    p.provs=PROVS().filter(x=>x===v||hasProv(p,x));touchR(r);renderMain();
+    openBalloon(document.getElementById('prov-'+p.id),p.id);   // abre o balão para o funcionário escolher; nada é incluído sozinho
   },
-  rtsReload(el){
-    const r=curR(),p=r.pos.find(x=>x.id===el.dataset.id);if(!p||!need(r))return;
-    const before=p.atividades.length;p.provs.forEach(v=>addLibActs(r,p,v));
-    touchR(r);renderMain();toast(p.atividades.length>before?`${plural(p.atividades.length-before,'atividade padrão adicionada','atividades padrão adicionadas')}.`:'As atividades padrão já estão todas na lista.');
-  },
+  rtsPick(el){const r=curR();if(!need(r))return;openBalloon(el,el.dataset.id)},
   rtsActAdd(el){
     const r=curR();if(!need(r))return;const l=actList(r,el.dataset.list);if(!l)return;
     const a=act('');l.push(a);touchR(r);renderMain();
@@ -516,6 +619,35 @@ Object.assign(MX.act,{
   }
 });
 Object.assign(MX.sub,{
+  async rtsLaudo(f){
+    const go=f.querySelector('#lg-go'),prev=f.querySelector('#lg-prev'),files=[...f.elements.f.files],r=curR();
+    if(!files.length){prev.textContent='Escolha o(s) arquivo(s).';return}
+    if(!r||locked(r))return;
+    go.setAttribute('aria-busy','true');
+    try{
+      if(f.dataset.step==='0'){
+        if(!window.RtsLaudo)throw new Error('O leitor de laudo não carregou. Recarregue a página.');
+        prev.textContent='Lendo os documentos…';
+        const plan=[];
+        for(const file of files){
+          const d=await RtsLaudo.readPdf(file);
+          if(d.images.length){plan.push({kind:'img',d});continue}
+          const lp=RtsLaudo.parse(d.lines);
+          if(lp.eLaudo&&lp.itens.length)plan.push({kind:'laudo',d,lp});
+          else{const text=RtsLaudo.freeText(d.lines);if(text)plan.push({kind:'text',d,text});else prev.textContent=`Não achei texto em “${file.name}”.`}
+        }
+        if(!plan.length){prev.textContent='Nenhum conteúdo reconhecido nos arquivos.';return}
+        f._plan=plan;f.dataset.step='1';prev.innerHTML=laudoPreview(r,plan);go.textContent='Importar para o RTS';
+        f.elements.f.addEventListener('change',()=>{f.dataset.step='0';go.textContent='Ler documentos';prev.textContent='';f._plan=null},{once:true});
+        return;
+      }
+      const e=f.elements,o={pos:!e['o-pos']||e['o-pos'].checked,obs:!e['o-obs']||e['o-obs'].checked,ficha:!e['o-ficha']||e['o-ficha'].checked,subst:!e['o-subst']||e['o-subst'].checked};
+      const n=await applyLaudo(r,f._plan||[],o);
+      touchR(r);closeDialog(f.closest('dialog'));renderMain();
+      toast([n.pos&&plural(n.pos,'POS criada','POS criadas'),n.ja&&`${plural(n.ja,'POS já existia','POS já existiam')}`,n.obs&&plural(n.obs,'observação','observações'),n.subst&&`${plural(n.subst,'observação padrão trocada','observações padrão trocadas')}`,n.extras&&'dados do equipamento',n.imgs&&plural(n.imgs,'imagem de desenho','imagens de desenho')].filter(Boolean).join(' · ')+'.',{ms:7000});
+    }catch(err){console.error(err);prev.textContent=err.message||'Não consegui ler o arquivo.'}
+    finally{go.removeAttribute('aria-busy')}
+  },
   rtsNew(f){
     const e=f.elements,mid=e.modelo?.value;
     const r=newRts({numero:e.numero.value.trim(),cliente:e.cliente.value.trim(),produto:e.produto.value.trim()});
@@ -550,8 +682,6 @@ Object.assign(MX.chg,{
   },
   rtsTeste(el){if(!el.value)return;const r=curR();if(!need(r))return;r.montagem.etapas.splice(Math.max(0,r.montagem.etapas.length-2),0,act(el.value));touchR(r);renderMain()},
   rtsObsLib(el){const o=OBSB()[+el.value],r=curR();if(!o||!need(r))return;r.observacoes.push({id:uid('RO'),titulo:o.titulo,texto:o.texto});touchR(r);renderMain()},
-  rtsTitMode(el){const r=curR();if(!need(r))return;r.tituloModo=el.value==='nome'?'nome':'pos';touchR(r);renderMain()},
-  rtsPint(el){const r=curR();if(!need(r))return;r.pintura=+el.value||0;touchR(r);toast('Vale para as próximas atividades de pintura que você incluir.')},
   rtsGar(el){const g=GAR()[+el.value],r=curR();if(!g||!need(r))return;r.garantia=g.texto;touchR(r);renderMain()},
   rtsAxLayout(el){const r=curR();if(!need(r))return;const a=r.anexos.find(x=>x.id===el.dataset.aid);if(a){a.layout=el.value==='cheia'?'cheia':'lado';touchR(r)}}
 });
