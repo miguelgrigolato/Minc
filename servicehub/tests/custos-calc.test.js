@@ -74,4 +74,5 @@ t('nome: mediana dos preços por item parecido; unidade incompatível não vira 
   const b=C.refPorNome([r('A',10,5,'LITRO')],{un:'PÇ',hoje});assert.strictEqual(b.valor,null);assert.ok(/outra unidade/.test(b.motivo));
   const c0=C.refPorNome([],{un:'PÇ',hoje});assert.strictEqual(c0.valor,null);
   const u=C.refPorNome([r('A',10,5)],{un:'PÇ',hoje});assert.strictEqual(u.confianca,'média');assert.strictEqual(u.codigos,1)});
+t('graxas e lixas entram em unidade',()=>{const o=C.orcamentoInicial();for(const d of ['GRAXAS','LIXAS'])assert.strictEqual(o.itens.find(i=>i.desc===d).un,'UN')});
 console.log(n+' testes ok');

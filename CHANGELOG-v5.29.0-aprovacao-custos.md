@@ -46,3 +46,9 @@ Para incluir/retirar um aprovador: `insert into doc_approvers(user_id,note) valu
 - Nada entra no orçamento sozinho: o preço só é aplicado em “Usar referência”.
 - Serviços: busca com 1 palavra já vale (ex.: “usinagem”); materiais exigem 2 palavras quando o nome tem 2+.
 - Linhas padrão em branco não são consultadas.
+
+---
+
+# v5.31.1
+- Graxas e lixas passam a entrar em **unidade (UN)** nos orçamentos novos (antes CJ), para casar com a unidade em que são compradas.
+- Banco: a coluna `purchase_history.busca` (usada na busca pelo nome) foi preenchida para as 4.794 compras já importadas com a v5.30.0.
