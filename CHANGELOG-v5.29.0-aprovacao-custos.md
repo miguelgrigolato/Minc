@@ -25,3 +25,15 @@ Para incluir/retirar um aprovador: `insert into doc_approvers(user_id,note) valu
 
 ## Testes
 `node servicehub/tests/custos-calc.test.js` (14 regras de cálculo). Testes de navegador e de banco: ver o resumo da entrega.
+
+---
+
+# v5.30.0 — histórico de compras importado da planilha do Nomus
+
+- Botão **Importar histórico** (tela Custo, só administrador/gestor): lê a planilha “BD - Custos” do Nomus, confere linha por linha e grava em `purchase_history`. Reimportar é seguro (linhas já gravadas são ignoradas).
+- **Não entram**: quantidade/preço/total zerados; total que não confere com quantidade × valor unitário (unidade ou quantidade errada); código genérico “XML-NFe entrada”; linhas repetidas (fica 1 cópia); preço fora de 5×/0,2× a mediana do código (códigos com 3+ compras). **Serviços entram** (preço de serviço não passa pelo filtro de preço, pois varia com o escopo).
+- “Baixar linhas descartadas” gera a lista do que ficou de fora e o motivo.
+- “Buscar preços no histórico” (antes “no Nomus”) agora lê `purchase_history`: materiais e também serviços/despesas com código. Serviço sem código: “Vincular código” busca no histórico de serviços.
+- Referência: média ponderada pela quantidade (peso limitado a 5× a quantidade mediana), descarta preço fora do padrão a partir de 3 compras, unidades do Nomus (UNIDADE, QUILOGRAMA, MILIMETRO…) casadas com as do app. Serviço: confiança no máximo “média”.
+- Banco: `purchase_history` e `purchase_imports` (migração `20261016_historico_compras.sql`, já aplicada). Leitura: quem acessa custos. Gravação: só administrador/gestor. Sem atualizar/apagar.
+- Resultado com a planilha enviada (4.923 linhas): 4.790 aproveitadas (3.766 material + 1.024 serviço), 133 descartadas (14 código genérico, 2 zeradas, 18 total não confere, 54 repetidas, 45 preço fora do padrão).

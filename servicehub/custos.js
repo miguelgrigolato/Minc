@@ -202,7 +202,7 @@ function rowHTML(it){
   const l=C.linha(it),mo=it.sec==='mo',cls=(l.estado==='pendente'?' cst-pnd':l.estado==='vazio'?' vazio':'')+(mo?' mo':'');
   const f=(k,label,cls2,ph,extra='')=>`<input class="${cls2}" aria-label="${label}" placeholder="${ph||label}" value="${esc(['qtd','preco','horas'].includes(k)?inNum(it[k]):it[k])}" data-inp="cstF" data-id="${esc(it.id)}" data-k="${k}" data-keep-case autocomplete="off" ${['qtd','preco','horas'].includes(k)?'inputmode="decimal"':''} ${extra}>`;
   const tag=it.preco!=null&&it.preco!==''?(it.preco_tipo==='referencia'?'<span class="cst-tag est">Estimado</span>':'<span class="cst-tag inf">Informado</span>'):'';
-  return `<div class="cst-row${cls}" data-row="${esc(it.id)}"><div class="cst-main">${f('desc','Descrição','cst-desc','Descrição do item')}${f('un','Unidade','cst-un','Un.','list="cst-un"')}${mo?f('qtd','Pessoas','cst-num','Pessoas')+f('horas','Horas','cst-num','Horas'):f('qtd','Quantidade','cst-num','Qtd.')}${f('preco',mo?'Valor da hora (R$)':'Preço unitário (R$)','cst-num',mo?'R$/h':'Preço unit.')}<output class="cst-tot" id="tot-${esc(it.id)}">${totTxt(it)}</output><button class="iconb" data-act="cstRm" data-id="${esc(it.id)}" aria-label="Remover item">${ic('trash')}</button></div><div class="cst-sub"><span id="tag-${esc(it.id)}">${tag}</span>${it.sec==='mat'?f('codigo','Código Nomus','cst-cod','Código Nomus'):''}${f('obs','Observação','cst-obs','Observação (especificação, justificativa de preço…)')}<span class="cst-refw" id="ref-${esc(it.id)}">${refHTML(it)}</span>${it.sec==='mat'&&emp(it.codigo)?`<button type="button" class="btn sm ghost" data-act="cstVinc" data-id="${esc(it.id)}">Vincular código</button>`:''}</div></div>`;
+  return `<div class="cst-row${cls}" data-row="${esc(it.id)}"><div class="cst-main">${f('desc','Descrição','cst-desc','Descrição do item')}${f('un','Unidade','cst-un','Un.','list="cst-un"')}${mo?f('qtd','Pessoas','cst-num','Pessoas')+f('horas','Horas','cst-num','Horas'):f('qtd','Quantidade','cst-num','Qtd.')}${f('preco',mo?'Valor da hora (R$)':'Preço unitário (R$)','cst-num',mo?'R$/h':'Preço unit.')}<output class="cst-tot" id="tot-${esc(it.id)}">${totTxt(it)}</output><button class="iconb" data-act="cstRm" data-id="${esc(it.id)}" aria-label="Remover item">${ic('trash')}</button></div><div class="cst-sub"><span id="tag-${esc(it.id)}">${tag}</span>${it.sec!=='mo'?f('codigo','Código Nomus','cst-cod','Código Nomus'):''}${f('obs','Observação','cst-obs','Observação (especificação, justificativa de preço…)')}<span class="cst-refw" id="ref-${esc(it.id)}">${refHTML(it)}</span>${it.sec!=='mo'&&emp(it.codigo)?`<button type="button" class="btn sm ghost" data-act="${it.sec==='mat'?'cstVinc':'cstSrvVinc'}" data-id="${esc(it.id)}">Vincular código</button>`:''}</div></div>`;
 }
 function secHTML(c,s){
   const itens=c.data.itens.filter(i=>i.sec===s.k);
@@ -217,6 +217,7 @@ function summaryHTML(c){
   return `<div class="panel cst-sum" id="cst-sum"><div class="cst-total"><small>${rs.parcial?'Total parcial (há itens pendentes)':'Total estimado'}</small><b>${brl(rs.total)}</b></div><dl class="cst-subs">${sub}</dl><div class="cst-cnt"><span><b>${rs.itens}</b> ${rs.itens===1?'item orçado':'itens orçados'}</span><span><b>${rs.estimados}</b> estimado${rs.estimados===1?'':'s'}</span><span><b>${rs.informados}</b> informado${rs.informados===1?'':'s'}</span><span class="${rs.pendentes?'cst-pend':''}"><b>${rs.pendentes}</b> pendente${rs.pendentes===1?'':'s'}</span></div></div>`;
 }
 MX.views.custo=function(){
+  setTimeout(()=>{if(CLOUD)Hist.carregar().then(i=>{const e=document.getElementById('cst-hist');if(e&&i)e.innerHTML='<b>Histórico de compras:</b> '+infoTxt(i)+'. '}).catch(()=>{})},0);
   const {r,c}=cur();
   if(!r)return `<div class="empty"><h2>RTS não encontrado</h2><button class="btn" data-act="rtsHome">Voltar</button></div>`;
   const info=headerInfo(r).map(([l,v])=>idLine(l,v)).join('');
@@ -225,7 +226,7 @@ MX.views.custo=function(){
   return `<div class="cst-doc"><div class="ph"><button class="btn ghost" data-act="custoBack">${ic('back')}${S.custoBack==='rtsEdit'?'Voltar ao RTS':'Todos os RTS'}</button><div class="ph-row"><div><h1>Custos — RTS ${esc(r.numero)||'(sem nº)'}</h1><p id="cst-state" class="hint" style="margin:0">${stateHTML(c)}</p></div><div class="actions"><button class="btn" data-act="cstPdfOpen">${ic('print')}Visualizar</button><button class="btn" data-act="cstXlsx">${ic('download')}Excel</button><button class="btn primary" data-act="cstPdf">${ic('download')}Baixar PDF</button></div></div></div>${conflict}${novo}
 <div class="panel"><div class="ph-row"><h2>Identificação <span class="muted" style="font-weight:400;font-size:13px">· vem do RTS</span></h2><button class="btn" data-act="cstOpenRts">Abrir RTS</button></div><dl class="kv cst-kv">${info}</dl></div>
 <div class="panel"><h2>Dados do orçamento</h2><div class="grid g3">${bud('ch-sol','Solicitante','solicitante',c.data.solicitante)}${bud('ch-eng','Responsável pela engenharia','respEngenharia',c.data.respEngenharia)}${bud('ch-prj','Responsável pelo projeto','respProjeto',c.data.respProjeto)}${bud('ch-prz','Prazo (dias úteis)','prazoDias',c.data.prazoDias)}</div><div class="field"><label for="ch-com">Comentários</label><textarea id="ch-com" rows="2" class="rts-ta" data-inp="cstH" data-k="comentarios" data-keep-case placeholder="Ex.: este orçamento prevê atividades realizadas no site da MINC.">${esc(c.data.comentarios)}</textarea></div></div>
-<div class="panel"><div class="ph-row"><div><h2>Lista e preços</h2><p class="hint" style="margin:0">Pendente = tem quantidade ou preço, mas falta o outro: fica de fora do total (nunca vira zero) e sai como “pendente” no documento. Linhas em branco não contam.</p></div><div class="actions"><button class="btn" data-act="cstImport">${ic('refresh')}Atualizar da lista de materiais</button><button class="btn" data-act="cstNomus">Buscar preços no Nomus</button><button class="btn" data-act="cstHist">${ic('clock')}Histórico</button>${isMgr()?'<button class="btn ghost" data-act="cstPadrao">Lista padrão</button>':''}</div></div></div>
+<div class="panel"><div class="ph-row"><div><h2>Lista e preços</h2><p class="hint" style="margin:0"><span id="cst-hist"></span> Pendente = tem quantidade ou preço, mas falta o outro: fica de fora do total (nunca vira zero) e sai como “pendente” no documento. Linhas em branco não contam.</p></div><div class="actions"><button class="btn" data-act="cstImport">${ic('refresh')}Atualizar da lista de materiais</button><button class="btn" data-act="cstNomus">Buscar preços no histórico</button><button class="btn" data-act="cstHist">${ic('clock')}Histórico</button>${isMgr()?'<button class="btn ghost" data-act="cstHistImport">Importar histórico</button><button class="btn ghost" data-act="cstPadrao">Lista padrão</button>':''}</div></div></div>
 ${summaryHTML(c)}${C.SECS.map(s=>secHTML(c,s)).join('')}
 <datalist id="cst-un">${C.UNIDADES.map(u=>`<option value="${u}">`).join('')}</datalist></div>`;
 };
@@ -354,43 +355,136 @@ Object.assign(MX.sub,{
   }
 });
 
-/* ---------- preços de referência (histórico de compras do Nomus) ---------- */
+/* ---------- histórico de compras (planilha do Nomus importada: tabela purchase_history) ---------- */
+const Hist={
+  info:null,infoAt:0,
+  async carregar(force){
+    if(!CLOUD||!navigator.onLine)return this.info;
+    if(!force&&this.info&&Date.now()-this.infoAt<120000)return this.info;
+    const q=await SB.from('purchase_imports').select('at,by_name,arquivo,mantidas,novas,periodo_ini,periodo_fim').order('at',{ascending:false}).limit(1);
+    if(q.error){if(missing(q.error)){this.info={semTabela:true};return this.info}throw q.error}
+    const c=await SB.from('purchase_history').select('id',{count:'exact',head:true});
+    this.info=q.data[0]?{...q.data[0],total:c.count}:{vazio:true};this.infoAt=Date.now();return this.info;
+  },
+  /* compras de uma lista de códigos, no formato do refPrice */
+  async compras(codes){
+    const out={};
+    for(let i=0;i<codes.length;i+=20){
+      const lote=codes.slice(i,i+20);
+      for(let from=0;;from+=1000){
+        const q=await SB.from('purchase_history').select('codigo,data,qtd,vun,um,fornecedor,tipo_item').in('codigo',lote).order('data',{ascending:false}).range(from,from+999);
+        if(q.error)throw q.error;
+        for(const x of q.data)(out[x.codigo]=out[x.codigo]||[]).push({data:x.data,situacao:'',quantidade:x.qtd,valorUnitario:x.vun,unidade:x.um,moeda:'R$',fornecedor:x.fornecedor||'',servico:x.tipo_item==='servico'});
+        if(q.data.length<1000)break;
+      }
+    }
+    return out;
+  }
+};
+window.CostsHist=Hist;
+const infoTxt=i=>!i?'':i.semTabela?'A tabela de histórico de compras ainda não existe no banco.':i.vazio?'Nenhuma compra importada ainda.':`${fmtN(i.total??i.mantidas)} compras · de ${dBR(i.periodo_ini)} a ${dBR(i.periodo_fim)} · importado em ${dBR(i.at)} por ${esc(i.by_name||'—')}`;
+const refSecs=['mat','srv','out'];
 const semCod=v=>emp(v)||/sem cadastro/i.test(v);
 Object.assign(MX.act,{
-  async cstNomus(el){
+  async cstNomus(){
     const {c}=cur();if(!c)return;
-    if(!window.Nomus||!Nomus.ok()){toast('A consulta ao Nomus precisa de internet e da conexão com a nuvem. O orçamento continua funcionando sem ela.',{ms:6000});return}
-    const its=c.data.itens.filter(i=>i.sec==='mat'&&!semCod(i.codigo));
+    if(!CLOUD||!navigator.onLine){toast('A consulta ao histórico de compras precisa de internet e da nuvem. O orçamento continua funcionando sem ela.',{ms:6000});return}
+    const its=c.data.itens.filter(i=>refSecs.includes(i.sec)&&!semCod(i.codigo));
     if(!its.length){toast('Nenhum item com código do Nomus. Use “Vincular código” nos itens ou carregue a lista pela D.E.',{ms:6000});return}
     const codes=[...new Set(its.map(i=>String(i.codigo).trim()))];
-    const t=toast('Consultando compras no Nomus…',{ms:240000});
-    const recs={};let falhou='',semProd=new Set(),parcial=false;
-    try{
-      for(let i=0;i<codes.length;i+=25){
-        let pagina=1,voltas=0;
-        const lote=codes.slice(i,i+25);
-        while(pagina&&voltas<8){
-          const r=await Nomus.call({acao:'compras',codigos:lote,pagina});voltas++;
-          for(const x of r.registros||[])(recs[x.codigo]=recs[x.codigo]||[]).push(x);
-          (r.semProduto||[]).forEach(x=>semProd.add(x));
-          pagina=r.proxima;if(pagina&&voltas>=8)parcial=true;
-        }
-      }
-    }catch(e){falhou=e.message||'Falha ao consultar o Nomus.'}
+    let recs={},info=null;
+    const t=toast('Consultando o histórico de compras…',{ms:120000});
+    try{info=await Hist.carregar(true);if(info&&(info.vazio||info.semTabela)){t.close();toast(info.semTabela?'A tabela de histórico de compras ainda não existe no banco.':'Ainda não há compras importadas. Um administrador/gestor importa a planilha do Nomus em “Importar histórico”.',{ms:8000});return}
+      recs=await Hist.compras(codes)}
+    catch(e){t.close();toast('Não foi possível consultar o histórico: '+(e.message||e),{ms:8000});return}
     t.close();
-    if(falhou&&!Object.keys(recs).length){toast(falhou,{ms:8000});return}
     const agora=new Date().toISOString();let com=0,sem=0;
     for(const it of its){
       const rr=recs[String(it.codigo).trim()]||[];
-      const ref=C.refPrice(rr,{un:it.un});
-      if(semProd.has(String(it.codigo).trim()))ref.motivo='Código não encontrado no cadastro de produtos do Nomus.';
+      const ref=C.refPrice(rr,{un:it.un,servico:it.sec!=='mat'});
       if(ref.valor==null)ref.motivo=ref.motivo||'Sem histórico de compras deste código.';
-      ref.consultadoEm=agora;ref.fonte='nomus';
+      ref.consultadoEm=agora;ref.fonte='historico_nomus';ref.baseAte=info&&info.periodo_fim||null;
       if(it.ref&&it.ref.valor!=null&&ref.valor!==it.ref.valor){it.refHist=[...(it.refHist||[]),{...it.ref}].slice(-10)}   // a referência anterior fica guardada
       it.ref=ref;if(ref.valor!=null)com++;else sem++;
     }
     touchC(c);renderMain();
-    toast(`${com} com referência, ${sem} sem histórico.${parcial?' Histórico lido só em parte (muitas páginas).':''}${falhou?' Interrompido: '+falhou:''} Nada foi aplicado: use “Usar referência” em cada item.`,{ms:9000});
+    toast(`${com} com referência, ${sem} sem histórico utilizável. Nada foi aplicado: use “Usar referência” em cada item.`,{ms:9000});
+  },
+  /* ---- serviços: vincular o código escolhendo no histórico de compras ---- */
+  cstSrvVinc(el){
+    if(!CLOUD){toast('Precisa da nuvem.');return}
+    S.cstTarget=el.dataset.id;
+    dialog(`<div class="dlg-body cst-dlg"><h2>Vincular serviço do histórico</h2><p>Busque pela descrição (use % para pular palavras). Aparecem os serviços já comprados.</p><div class="field"><label for="cs-q">Buscar</label><input id="cs-q" data-inp="cstSrvQ" autocomplete="off" autofocus placeholder="usinagem, revestimento, transporte…"></div><div class="cst-list" id="cs-res"><p class="hint">Digite para buscar.</p></div><div class="actions end"><button type="button" class="btn" data-act="closeDlg">Fechar</button></div></div>`);
+  },
+  cstSrvPick(el){
+    const {c}=cur();if(!c)return;const it=findIt(c,S.cstTarget);if(!it)return;
+    it.codigo=el.dataset.cod;if(emp(it.desc))it.desc=el.dataset.desc;it.ref=null;touchC(c);renderMain();closeDialog(el.closest('dialog'));toast('Código vinculado.');
+  },
+  /* ---- importar a planilha do Nomus (administrador/gestor) ---- */
+  async cstHistImport(){
+    if(!CLOUD||!isMgr()){toast('Só administrador ou gestor, com a nuvem ligada, importa o histórico.');return}
+    let info=null;try{info=await Hist.carregar(true)}catch{}
+    dialog(`<form class="dlg-body cst-dlg" data-submit="cstHistImport" data-step="0"><h2>Importar histórico de compras</h2><p>Escolha a planilha <b>“BD - Custos”</b> exportada do Nomus (compras por nota fiscal). O app confere cada linha: o que tem <b>quantidade, preço ou unidade errados não entra</b> e não vira referência. Serviços ficam. Linhas já importadas antes são ignoradas, então pode importar planilhas novas por cima.</p>${info&&!info.vazio&&!info.semTabela?`<p class="hint">Base atual: ${infoTxt(info)}</p>`:''}<div class="field"><label for="hi-f">Planilha (.xlsx)</label><input id="hi-f" type="file" name="f" accept=".xlsx,.xls,.csv"></div><div id="hi-prev" class="hint" aria-live="polite"></div><div class="actions end"><button type="button" class="btn" data-act="closeDlg">Cancelar</button><button type="button" class="btn" id="hi-dl" data-act="cstHistDescartes" hidden>Baixar linhas descartadas</button><button class="btn primary" id="hi-go" type="submit">Ler planilha</button></div></form>`);
+  },
+  cstHistDescartes(){
+    const p=S.cstHist;if(!p||!p.descartadas.length)return;
+    const aoa=[['Linha no arquivo','Motivo','Código','Descrição','U.M.','Qtd','Valor unitário','Valor total','Fornecedor','Data']].concat(p.descartadas.map(l=>[l.linha,l.motivo,l.codigo,l.descricao,l.um,l.qtd,l.vun,l.vtot,l.fornecedor,l.data?l.data.toISOString().slice(0,16).replace('T',' '):'']));
+    const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(aoa),'Descartadas');XLSX.writeFile(wb,'Compras descartadas na importacao.xlsx');
+  }
+});
+Object.assign(MX.inp,{
+  async cstSrvQ(el){
+    const out=document.getElementById('cs-res');if(!out)return;
+    const toks=el.value.split(/[\s%]+/).map(x=>x.trim()).filter(x=>x.length>1).slice(0,5);
+    if(!toks.length){out.innerHTML='<p class="hint">Digite para buscar.</p>';return}
+    const seq=(S.cstSeq=(S.cstSeq||0)+1);
+    let q=SB.from('purchase_history').select('codigo,descricao,um,data').eq('tipo_item','servico');
+    for(const t of toks)q=q.ilike('descricao','%'+t.replace(/[%_,()]/g,' ')+'%');
+    const r=await q.order('data',{ascending:false}).limit(400);
+    if(seq!==S.cstSeq)return;
+    if(r.error){out.innerHTML='<p class="hint">Não foi possível buscar.</p>';return}
+    const m=new Map();for(const x of r.data){const e=m.get(x.codigo)||{...x,n:0};e.n++;m.set(x.codigo,e)}
+    out.innerHTML=[...m.values()].slice(0,40).map(x=>`<div class="cst-mp"><div><b>${esc(x.codigo)}</b> ${esc(x.descricao)}<br><small class="muted">${esc(x.um)} · ${x.n} ${x.n===1?'compra':'compras'} · última ${dBR(x.data)}</small></div><button type="button" class="btn" data-act="cstSrvPick" data-cod="${esc(x.codigo)}" data-desc="${esc(x.descricao)}">Vincular</button></div>`).join('')||'<p class="hint">Nada encontrado.</p>';
+  }
+});
+Object.assign(MX.sub,{
+  async cstHistImport(f){
+    const prev=f.querySelector('#hi-prev'),go=f.querySelector('#hi-go'),dl=f.querySelector('#hi-dl');
+    if(f.dataset.step==='1'){   // grava
+      const p=S.cstHist;if(!p)return;
+      go.disabled=true;go.textContent='Importando…';
+      try{
+        const ins=await SB.from('purchase_imports').insert({by_id:S.user.id,by_name:S.user.name,arquivo:p.arquivo,linhas:p.total,mantidas:p.mantidas.length,descartadas:p.resumo,periodo_ini:p.ini,periodo_fim:p.fim}).select('id').single();
+        if(ins.error)throw ins.error;
+        const rows=p.mantidas.map(l=>({...C.paraBanco(l),lote:ins.data.id}));let novas=0;
+        for(let i=0;i<rows.length;i+=400){
+          prev.textContent=`Gravando… ${Math.min(i+400,rows.length)} de ${rows.length}`;
+          const q=await SB.from('purchase_history').upsert(rows.slice(i,i+400),{onConflict:'chave',ignoreDuplicates:true}).select('id');
+          if(q.error)throw q.error;novas+=q.data.length;
+        }
+        await SB.from('purchase_imports').update({novas}).eq('id',ins.data.id);
+        Hist.info=null;S.cstHist=null;closeDialog(f.closest('dialog'));
+        toast(`${fmtN(novas)} compras novas gravadas (${fmtN(rows.length-novas)} já estavam no histórico).`,{ms:8000});
+        if(S.screen==='custo')renderMain();
+      }catch(e){console.error(e);prev.innerHTML=`<span class="cst-pend">Não foi possível gravar: ${esc(e.message||e)}</span>`;go.disabled=false;go.textContent='Tentar de novo'}
+      return;
+    }
+    const file=f.elements.f.files[0];
+    if(!file){prev.textContent='Escolha a planilha.';return}
+    go.disabled=true;prev.textContent='Lendo a planilha…';
+    try{
+      const buf=await file.arrayBuffer();
+      const wb=XLSX.read(buf,{type:'array',cellDates:true});
+      const aoa=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,raw:true,defval:null});
+      const l=C.lerPlanilhaCompras(aoa);
+      if(l.erro){prev.innerHTML=`<span class="cst-pend">${esc(l.erro)}</span>`;go.disabled=false;return}
+      const r=C.limparCompras(l.linhas),ds=r.mantidas.map(x=>+x.data);
+      S.cstHist={arquivo:file.name,total:l.linhas.length,mantidas:r.mantidas,descartadas:r.descartadas,resumo:r.resumo,ini:new Date(Math.min(...ds)).toISOString(),fim:new Date(Math.max(...ds)).toISOString()};
+      const sv=r.mantidas.filter(C.ehServico).length;
+      prev.innerHTML=`<b>${fmtN(l.linhas.length)}</b> linhas lidas · <b>${fmtN(r.mantidas.length)}</b> aproveitadas (${fmtN(r.mantidas.length-sv)} de material e ${fmtN(sv)} de serviço) · <b>${fmtN(r.descartadas.length)}</b> descartadas<br><small>Período: ${dBR(S.cstHist.ini)} a ${dBR(S.cstHist.fim)}</small>${r.descartadas.length?`<ul style="margin:6px 0 0 18px">${Object.entries(r.resumo).map(([k,n])=>`<li>${n} — ${esc(k)}</li>`).join('')}</ul>`:''}`;
+      if(r.descartadas.length)dl.hidden=false;
+      f.dataset.step='1';go.disabled=false;go.textContent=`Importar ${fmtN(r.mantidas.length)} compras`;
+    }catch(e){console.error(e);prev.innerHTML=`<span class="cst-pend">Não consegui ler o arquivo: ${esc(e.message||e)}</span>`;go.disabled=false}
   }
 });
 

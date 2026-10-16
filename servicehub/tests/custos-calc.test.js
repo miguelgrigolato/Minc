@@ -33,4 +33,32 @@ t('importação: novos, alterados e sumidos, sem tocar em preço',()=>{
   const p=C.planoImportacao([it,it2],[{chave:'k1',desc:'PARAFUSO',un:'PÇ',qtd:6},{chave:'k2',desc:'NOVO',un:'PÇ',qtd:1}]);
   assert.strictEqual(p.novos.length,1);assert.strictEqual(p.alterados.length,1);assert.strictEqual(p.alterados[0].mud[0].campo,'qtd');assert.strictEqual(p.sumiram.length,1);
   const igual=C.planoImportacao([it],[{chave:'k1',desc:'parafuso',un:'pç',qtd:4}]);assert.strictEqual(igual.alterados.length,0)});
+
+const L=(o)=>Object.assign({linha:2,disc:'Documento de entrada',codigo:'01.03.1',descricao:'PARAFUSO',familia:'PARAFUSO',tipo:'Materia prima',mov:'Compra',um:'UNIDADE',qtd:10,vtot:20,vun:2,fornecedor:'FORN A',data:new Date(Date.UTC(2026,5,1,10,0,0))},o);
+t('unidades do Nomus casam com as do app',()=>{for(const [a,b] of [['PÇ','UNIDADE'],['KG','QUILOGRAMA'],['MM','MILIMETRO'],['M','METRO'],['LT','LITRO'],['CJ','JOGO'],['UN','PEÇA']])assert.strictEqual(C.normUn(a),C.normUn(b),a+' x '+b);assert.notStrictEqual(C.normUn('MM'),C.normUn('M'))});
+t('limpeza: tira erro de valor/quantidade, código genérico e repetida; mantém serviço',()=>{
+  const linhas=[L({}),L({qtd:5,vtot:10,vun:2,data:new Date(Date.UTC(2026,5,2))}),
+    L({qtd:0.05,vtot:204.42,vun:204.42,codigo:'06.16.7.116'}),                       // total != qtd x unitário
+    L({um:'MILIMETRO',qtd:405,vun:884.52,vtot:358.23,codigo:'01.09.1'}),             // unitário por metro em linha de mm
+    L({vun:0,vtot:0,codigo:'01.03.9'}),L({codigo:'XML-NFe entrada',descricao:'Produto padrão'}),
+    L({}),L({}),                                                                       // repetidas
+    L({disc:'Documento de compra de serviço',tipo:'Serviço',codigo:'09.1.0003',descricao:'CORTE DE CHAPA',vun:6.8,vtot:6.8,qtd:1}),
+    L({disc:'Documento de compra de serviço',tipo:'Serviço',codigo:'09.1.0003',descricao:'CORTE DE CHAPA',vun:15000,vtot:15000,qtd:1,data:new Date(Date.UTC(2026,6,1))})];
+  const r=C.limparCompras(linhas);
+  assert.strictEqual(r.descartadas.length,6);assert.strictEqual(r.mantidas.length,4);
+  assert.strictEqual(r.mantidas.filter(C.ehServico).length,2);          // serviços ficam, mesmo com preço muito diferente
+  assert.strictEqual(r.resumo['Linha repetida (ficou uma cópia)'],2)});
+t('limpeza: preço fora do padrão do código sai (só com 3+ compras)',()=>{
+  const l=[10,11,9,12,500].map((v,i)=>L({vun:v,vtot:v*10,data:new Date(Date.UTC(2026,5,1+i))}));
+  const r=C.limparCompras(l);assert.strictEqual(r.descartadas.length,1);assert.strictEqual(r.descartadas[0].vun,500);
+  const dois=C.limparCompras([L({vun:10,vtot:100}),L({vun:900,vtot:9000,data:new Date(Date.UTC(2026,5,5))})]);assert.strictEqual(dois.descartadas.length,0)});
+t('referência: quantidade fora de série não domina a média',()=>{
+  const reg=(v,q,d)=>({data:d,situacao:'',quantidade:q,valorUnitario:v,unidade:'KG',moeda:'R$'});
+  const r=C.refPrice([reg(10,5,'2026-08-01'),reg(11,6,'2026-07-01'),reg(10.5,5000,'2026-06-01')],{un:'KG',hoje});
+  assert.ok(r.valor>10&&r.valor<10.8,String(r.valor))});
+t('leitura da planilha: cabeçalho do Nomus e hora preservada',()=>{
+  const h=['Discriminador do item documento estoque/serviço','Código do produto do item de documento estoque/serviço','Descrição do produto do item de documento estoque/serviço','Família de produto do item de documento estoque/serviço','Tipo de produto do item de documento estoque/serviço','Tipo de movimentação do item de documento estoque/serviço','U.M. principal do item do documento de estoque/serviço','Quantidade na U.M. principal do item documento estoque/serviço','Valor total do item de documento estoque','Valor unitário do item de documento estoque/serviço','Classificação financeira do item de documento estoque','Pessoa do documento estoque/serviço','Data/hora da última modificação do documento','Data/hora da criação do documento estoque/serviço','Condição de pagamento do documento estoque/serviço'];
+  const r=C.lerPlanilhaCompras([h,['Documento de entrada','07.15.5.23','TRAPO','MAT','Material de uso e consumo','Compra','QUILOGRAMA',80,792,9.9,'x','FORN','2025-09-30 13:49:02','2025-09-30 13:45:30','30 dias']]);
+  assert.strictEqual(r.linhas.length,1);assert.strictEqual(r.linhas[0].data.toISOString(),'2025-09-30T13:45:30.000Z');assert.strictEqual(r.linhas[0].qtd,80);
+  assert.ok(C.lerPlanilhaCompras([['a','b'],[1,2]]).erro)});
 console.log(n+' testes ok');

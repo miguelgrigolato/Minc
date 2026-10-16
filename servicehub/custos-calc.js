@@ -69,7 +69,19 @@ function resumo(itens){
 
 /* ---------- preço de referência a partir do histórico de compras ---------- */
 const SIT_RUIM=/cancel|devolv|estorn|rejeit|reprov|exclu/i;
-const normUn=u=>String(u||'').toUpperCase().replace(/[^A-Z0-9²³]/g,'').replace(/^(PC|PCS|PECA|PECAS|PÇ|PÇS|UNID|UNIDADE|UND|UN)$/,'UN').replace(/^(LITRO|LITROS|LT|L)$/,'LT').replace(/^(QUILO|KILO|QUILOS|KG)$/,'KG').replace(/^(CONJUNTO|CJ|KIT|JG|JOGO)$/,'CJ').replace(/^(METRO|METROS|MT|M)$/,'M');
+const fold=t=>String(t||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toUpperCase();
+const normUn=u=>{
+  const t=fold(u).replace(/[^A-Z0-9]/g,'');
+  if(/^(PC|PCS|PECA|PECAS|UNID|UNIDADE|UND|UN)$/.test(t))return 'UN';
+  if(/^(LITRO|LITROS|LT|L)$/.test(t))return 'LT';
+  if(/^(QUILO|KILO|QUILOS|QUILOGRAMA|QUILOGRAMAS|KG)$/.test(t))return 'KG';
+  if(/^(CONJUNTO|CJ|KIT|JG|JOGO)$/.test(t))return 'CJ';
+  if(/^(METRO|METROS|MT|M)$/.test(t))return 'M';
+  if(/^(MILIMETRO|MILIMETROS|MM)$/.test(t))return 'MM';
+  if(/^(METROQUADRADO|M2)$/.test(t))return 'M2';
+  if(/^(HORA|HORAS|H|HR)$/.test(t))return 'H';
+  return t;
+};
 function dataDe(s){
   if(!s)return null;
   const t=String(s).trim();let m=/^(\d{4})-(\d{2})-(\d{2})/.exec(t);
@@ -81,7 +93,7 @@ function dataDe(s){
 const meses=(a,b)=>(b-a)/(1000*60*60*24*30.4375);
 const iso=d=>d.toISOString().slice(0,10);
 function mediana(v){const s=[...v].sort((a,b)=>a-b),m=s.length>>1;return s.length%2?s[m]:(s[m-1]+s[m])/2}
-function refPrice(registros,{un='',hoje=new Date(),janela=12,maxJanela=36}={}){
+function refPrice(registros,{un='',hoje=new Date(),janela=12,maxJanela=36,servico=false}={}){
   const exc={};const bump=k=>{exc[k]=(exc[k]||0)+1};
   const ok=[];
   for(const r of registros||[]){
@@ -100,14 +112,16 @@ function refPrice(registros,{un='',hoje=new Date(),janela=12,maxJanela=36}={}){
   if(!pool.length){pool=ok.filter(x=>x.idade<=maxJanela);antigo=true}
   if(!pool.length)return{valor:null,n:0,motivo:`Última compra há mais de ${maxJanela} meses (${iso(ok.sort((a,b)=>b.d-a.d)[0].d)}): histórico antigo demais para sugerir preço.`,excluidos:exc,ultimaCompra:iso(ok.sort((a,b)=>b.d-a.d)[0].d)};
   let outliers=0;
-  if(pool.length>=4){const md=mediana(pool.map(x=>x.v)),keep=pool.filter(x=>x.v>=md/3&&x.v<=md*3);outliers=pool.length-keep.length;if(outliers){exc['preço fora do padrão']=outliers;pool=keep}}
-  const sq=pool.reduce((s,x)=>s+x.q,0),valor=pool.reduce((s,x)=>s+x.v*x.q,0)/sq;
+  if(pool.length>=3&&!servico){const md=mediana(pool.map(x=>x.v)),keep=pool.filter(x=>x.v>=md/3&&x.v<=md*3);outliers=pool.length-keep.length;if(outliers){exc['preço fora do padrão']=outliers;pool=keep}}
+  /* uma quantidade fora de série (ex.: 6.000 no lugar de 6) não pode dominar a média: peso limitado a 5x a quantidade mediana */
+  const capQ=5*mediana(pool.map(x=>x.q)),w=x=>Math.min(x.q,capQ);
+  const sq=pool.reduce((s,x)=>s+w(x),0),valor=pool.reduce((s,x)=>s+x.v*w(x),0)/sq;
   const ult=[...pool].sort((a,b)=>b.d-a.d)[0];
-  const confianca=antigo?'baixa':pool.length>=3?'alta':'média';
+  const confianca=antigo?'baixa':servico?(pool.length>=3?'média':'baixa'):pool.length>=3?'alta':pool.length===2?'média':'baixa';
   return{
     valor:Number(valor.toFixed(4)),n:pool.length,ultimaCompra:iso(ult.d),ultimoPreco:ult.v,min:Math.min(...pool.map(x=>x.v)),max:Math.max(...pool.map(x=>x.v)),
     confianca,antigo,excluidos:exc,un:un||'',
-    metodo:`média ponderada pela quantidade comprada, ${antigo?`compras de até ${maxJanela} meses (nenhuma nos últimos ${janela})`:`compras dos últimos ${janela} meses`}`
+    servico,metodo:`${servico?'serviço (o preço varia com o escopo): ':''}média ponderada pela quantidade comprada, ${antigo?`compras de até ${maxJanela} meses (nenhuma nos últimos ${janela})`:`compras dos últimos ${janela} meses`}`
   };
 }
 
@@ -132,6 +146,60 @@ function planoImportacao(itens,fontes){
   const sumiram=itens.filter(i=>i.origem&&['de','rts'].includes(i.origem.tipo)&&i.origem.chave&&!vistos.has(i.origem.chave));
   return{novos,alterados,sumiram};
 }
+
+
+/* ---------- importação da planilha de compras do Nomus ("BD - Custos") ---------- */
+const COLS={disc:/^discriminador/,codigo:/^codigo do produto/,descricao:/^descricao do produto/,familia:/^familia/,tipo:/^tipo de produto/,mov:/^tipo de movimentacao/,um:/^u\.?m\. principal/,qtd:/^quantidade na u\.?m/,vtot:/^valor total/,vun:/^valor unitario/,fornecedor:/^pessoa/,data:/^data\/hora da criacao/};
+const normH=t=>fold(t).toLowerCase().replace(/\s+/g,' ').trim();
+/* aoa: matriz (1ª linha = cabeçalho). Devolve {linhas:[...]} ou {erro} */
+function lerPlanilhaCompras(aoa){
+  if(!aoa||aoa.length<2)return{erro:'A planilha está vazia.'};
+  const hdr=aoa[0].map(normH),idx={},falta=[];
+  for(const [k,re] of Object.entries(COLS)){const i=hdr.findIndex(h=>re.test(h));if(i<0)falta.push(k);else idx[k]=i}
+  const obrig=['codigo','descricao','um','qtd','vtot','vun','data'];
+  const sem=obrig.filter(k=>falta.includes(k));
+  if(sem.length)return{erro:'Não achei estas colunas no cabeçalho: '+sem.join(', ')+'. Use o relatório “BD - Custos” do Nomus, sem mudar os títulos.'};
+  const linhas=[];
+  for(let r=1;r<aoa.length;r++){
+    const row=aoa[r];if(!row||row.every(v=>v==null||v===''))continue;
+    const g=k=>idx[k]==null?'':row[idx[k]];
+    let d=g('data');
+    if(d instanceof Date)d=isNaN(d)?null:new Date(Date.UTC(d.getFullYear(),d.getMonth(),d.getDate(),d.getHours(),d.getMinutes(),d.getSeconds()));   // hora de parede, igual em qualquer fuso
+    else{const m=/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?/.exec(String(d||''));d=m?new Date(Date.UTC(+m[1],+m[2]-1,+m[3],+m[4],+m[5],+(m[6]||0))):dataDe(d)}
+    linhas.push({linha:r+1,disc:String(g('disc')||''),codigo:String(g('codigo')||'').trim(),descricao:String(g('descricao')||'').replace(/\s+/g,' ').trim(),familia:String(g('familia')||'').trim(),tipo:String(g('tipo')||'').trim(),mov:String(g('mov')||'').trim(),um:String(g('um')||'').trim(),qtd:parseNum(g('qtd')),vtot:parseNum(g('vtot')),vun:parseNum(g('vun')),fornecedor:String(g('fornecedor')||'').trim(),data:d});
+  }
+  return{linhas};
+}
+const ehServico=l=>/servi[cç]o/i.test(l.tipo)||/servi[cç]o/i.test(l.disc);
+/* Limpa as linhas: o que tem valor ou quantidade errados NÃO entra (nem como referência). Serviços ficam. */
+function limparCompras(linhas){
+  const descartadas=[],resumo={};
+  const out=(l,motivo)=>{descartadas.push({...l,motivo});resumo[motivo]=(resumo[motivo]||0)+1};
+  const M={zero:'Quantidade, preço ou total zerado',total:'Total não confere com quantidade × valor unitário (unidade ou quantidade errada)',generico:'Código genérico de importação XML (sem produto real)',semdata:'Sem data ou sem código',rep:'Linha repetida (ficou uma cópia)',fora:'Preço fora do padrão do código (provável erro de quantidade ou unidade)'};
+  const bons=[];
+  for(const l of linhas){
+    if(!l.codigo||!l.data||isNaN(l.data)){out(l,M.semdata);continue}
+    if(!(l.qtd>=0.0001)||!(l.vtot>=0.01)||!(l.vun>=0.000001)){out(l,M.zero);continue}
+    if(/^XML/i.test(l.codigo)){out(l,M.generico);continue}
+    if(Math.abs(l.vtot/(l.qtd*l.vun)-1)>0.02){out(l,M.total);continue}
+    bons.push(l);
+  }
+  const vistos=new Set(),sem=[];
+  for(const l of bons){const k=[l.codigo,l.descricao,l.data.toISOString().slice(0,16),l.fornecedor,l.qtd,l.vtot].join('|');if(vistos.has(k)){out(l,M.rep);continue}vistos.add(k);sem.push(l)}
+  const porCod=new Map();
+  for(const l of sem)if(!ehServico(l)){(porCod.get(l.codigo)||porCod.set(l.codigo,[]).get(l.codigo)).push(l.vtot/l.qtd)}
+  const med=new Map([...porCod].filter(([,v])=>v.length>=3).map(([k,v])=>[k,mediana(v)]));
+  const mantidas=[];
+  for(const l of sem){
+    const m=med.get(l.codigo);
+    if(m&&!ehServico(l)){const r=(l.vtot/l.qtd)/m;if(r>5||r<0.2){out(l,M.fora);continue}}
+    mantidas.push(l);
+  }
+  return{mantidas,descartadas,resumo};
+}
+const chaveCompra=l=>[l.codigo,l.data.toISOString().slice(0,16),l.fornecedor,l.qtd,l.vtot].join('|');
+/* linha pronta para a tabela purchase_history (o preço unitário gravado é total ÷ quantidade) */
+const paraBanco=l=>({chave:chaveCompra(l),codigo:l.codigo,descricao:l.descricao,familia:l.familia||null,tipo:l.tipo||null,tipo_item:ehServico(l)?'servico':'material',um:l.um,qtd:l.qtd,vtot:l.vtot,vun:Number((l.vtot/l.qtd).toFixed(6)),data:l.data.toISOString(),fornecedor:l.fornecedor||null,movimentacao:l.mov||null});
 
 /* ---------- listas padrão (da planilha de custos real do RTS 1183-26) ---------- */
 const CATALOGO=[
@@ -175,7 +243,7 @@ function orcamentoInicial(padrao){
   return{versao:1,itens:[...mat,...mo,...out,...srv],solicitante:'',respEngenharia:'',respProjeto:'',prazoDias:'',comentarios:''};
 }
 
-const api={SECS,UNIDADES,parseNum,dec,cents,linha,resumo,refPrice,normUn,planoImportacao,snapOf,nz,CATALOGO,catalogoPlano,BASE_MAT,HH,OUT,SRV,itemNovo,orcamentoInicial,novoId};
+const api={lerPlanilhaCompras,limparCompras,paraBanco,chaveCompra,ehServico,SECS,UNIDADES,parseNum,dec,cents,linha,resumo,refPrice,normUn,planoImportacao,snapOf,nz,CATALOGO,catalogoPlano,BASE_MAT,HH,OUT,SRV,itemNovo,orcamentoInicial,novoId};
 root.CustosCalc=api;
 if(typeof module!=='undefined'&&module.exports)module.exports=api;
 })(typeof window!=='undefined'?window:globalThis);

@@ -3,7 +3,7 @@
    - Código (HTML/CSS/JS/manifest): rede primeiro, com limite de 3 s; cai para o cache se a rede falhar.
      Assim uma nova versão publicada chega sozinha, sem trocar nome de cache manualmente.
    - Fontes, ícones e bibliotecas: cache primeiro. */
-const VERSION = 'minc-peritagem-v5.29.0';
+const VERSION = 'minc-peritagem-v5.30.0';
 const CORE = [
   './', './index.html', './styles.css', './movimento.css', './movimento.js', './app.js', './ajustes.js', './servicos.js', './materiais.js', './fichas.js', './nomus.js', './nomusproc.js', './painel.js', './comparar.js', './nomuscat.js', './cadastros.js', './avisos.js', './ajuda.js', './modelos.js', './aprovacao.js', './rts.js', './custos-calc.js', './custos.js', './laudo.js', './modulos.css', './autocorrect.js', './config.js', './catalogo.js', './manifest.json',
   './vendor/xlsx.mini.min.js', './vendor/supabase.js', './vendor/jspdf.umd.min.js', './vendor/jspdf.plugin.autotable.min.js',
