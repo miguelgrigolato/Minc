@@ -186,11 +186,16 @@ const bud=(id,l,k,v,ph='')=>`<div class="field"><label for="${id}">${l}</label><
 function refHTML(it){
   const rf=it.ref;
   if(!rf)return '';
-  if(rf.valor==null)return `<span class="cst-ref none" title="${esc(rf.motivo||'')}">Nomus: ${esc(rf.motivo||'sem histórico')}</span>`;
-  const used=C.parseNum(it.preco);
-  const ign=used!=null&&Math.abs(used-rf.valor)>1e-9;
+  const itens=n=>`${n} ${n===1?'item parecido':'itens parecidos'}`;
+  if(rf.valor==null)return `<span class="cst-ref none" title="${esc(rf.motivo||'')}">Histórico de compras: ${esc(rf.motivo||'sem histórico')}</span>`;
+  const used=C.parseNum(it.preco),ign=used!=null&&Math.abs(used-rf.valor)>1e-9;
+  const btn=ign||used==null?`<button type="button" class="btn sm" data-act="cstUseRef" data-id="${esc(it.id)}">Usar referência</button>`:'';
+  if(rf.porNome){
+    const busca=(rf.palavras||[]).join(' + ');
+    return `<span class="cst-ref ${rf.confianca==='baixa'?'old':''}" title="${esc(rf.metodo||'')}">Estimativa pelo nome (${esc(busca)}): <b>${brlP(rf.valor)}</b> · ${rf.n} ${rf.n===1?'compra':'compras'}${rf.codigos>1?' de '+itens(rf.codigos)+` (de ${brlP(rf.min)} a ${brlP(rf.max)})`:''} · última ${dBR(rf.ultimaCompra)} · confiança ${esc(rf.confianca)}${rf.amplo?' · <b>busca ampla</b>':''}${ign?` · usado ${brlP(used)}`:''}</span><button type="button" class="btn sm ghost" data-act="cstCands" data-id="${esc(it.id)}">Ver itens parecidos</button>${btn}`;
+  }
   const old=rf.antigo?' · <b>histórico antigo</b>':'';
-  return `<span class="cst-ref ${rf.antigo?'old':''}" title="${esc(rf.metodo||'')}">Ref. Nomus <b>${brlP(rf.valor)}</b> · ${rf.n} ${rf.n===1?'compra':'compras'} · última ${dBR(rf.ultimaCompra)} · confiança ${esc(rf.confianca)}${old}${ign?` · usado ${brlP(used)}`:''}</span>${ign||used==null?`<button type="button" class="btn sm" data-act="cstUseRef" data-id="${esc(it.id)}">Usar referência</button>`:''}`;
+  return `<span class="cst-ref ${rf.antigo?'old':''}" title="${esc(rf.metodo||'')}">Ref. compras <b>${brlP(rf.valor)}</b> · ${rf.n} ${rf.n===1?'compra':'compras'} · última ${dBR(rf.ultimaCompra)} · confiança ${esc(rf.confianca)}${old}${ign?` · usado ${brlP(used)}`:''}</span>${btn}`;
 }
 function totTxt(it){
   const l=C.linha(it);
@@ -357,13 +362,13 @@ Object.assign(MX.sub,{
 
 /* ---------- histórico de compras (planilha do Nomus importada: tabela purchase_history) ---------- */
 const Hist={
-  info:null,infoAt:0,
+  info:null,infoAt:0,db(){return SB},   // db() existe para os testes poderem trocar a conexão
   async carregar(force){
     if(!CLOUD||!navigator.onLine)return this.info;
     if(!force&&this.info&&Date.now()-this.infoAt<120000)return this.info;
-    const q=await SB.from('purchase_imports').select('at,by_name,arquivo,mantidas,novas,periodo_ini,periodo_fim').order('at',{ascending:false}).limit(1);
+    const q=await this.db().from('purchase_imports').select('at,by_name,arquivo,mantidas,novas,periodo_ini,periodo_fim').order('at',{ascending:false}).limit(1);
     if(q.error){if(missing(q.error)){this.info={semTabela:true};return this.info}throw q.error}
-    const c=await SB.from('purchase_history').select('id',{count:'exact',head:true});
+    const c=await this.db().from('purchase_history').select('id',{count:'exact',head:true});
     this.info=q.data[0]?{...q.data[0],total:c.count}:{vazio:true};this.infoAt=Date.now();return this.info;
   },
   /* compras de uma lista de códigos, no formato do refPrice */
@@ -372,7 +377,7 @@ const Hist={
     for(let i=0;i<codes.length;i+=20){
       const lote=codes.slice(i,i+20);
       for(let from=0;;from+=1000){
-        const q=await SB.from('purchase_history').select('codigo,data,qtd,vun,um,fornecedor,tipo_item').in('codigo',lote).order('data',{ascending:false}).range(from,from+999);
+        const q=await this.db().from('purchase_history').select('codigo,data,qtd,vun,um,fornecedor,tipo_item').in('codigo',lote).order('data',{ascending:false}).range(from,from+999);
         if(q.error)throw q.error;
         for(const x of q.data)(out[x.codigo]=out[x.codigo]||[]).push({data:x.data,situacao:'',quantidade:x.qtd,valorUnitario:x.vun,unidade:x.um,moeda:'R$',fornecedor:x.fornecedor||'',servico:x.tipo_item==='servico'});
         if(q.data.length<1000)break;
@@ -380,6 +385,26 @@ const Hist={
     }
     return out;
   }
+};
+/* pelo NOME do item, quando não há código (ou o código não tem compras): acha itens parecidos na base e tira a mediana dos preços */
+Hist.cacheNome=new Map();
+Hist.porNome=async function(it){
+  const serv=it.sec!=='mat',niveis=C.niveisBusca(it.desc||'',serv?1:2);
+  if(!niveis.length)return{valor:null,n:0,porNome:true,motivo:'Descrição curta demais para buscar pelo nome.'};
+  for(const [i,palavras] of niveis.entries()){
+    const k=(serv?'s':'m')+'|'+palavras.join(' ')+'|'+it.un;
+    let regs=this.cacheNome.get(k);
+    if(!regs){
+      let q=this.db().from('purchase_history').select('codigo,descricao,data,qtd,vun,um,fornecedor').eq('tipo_item',serv?'servico':'material');
+      for(const w of palavras)q=q.like('busca','%'+w+'%');
+      const r=await q.order('data',{ascending:false}).limit(1500);
+      if(r.error)throw r.error;
+      regs=r.data.map(x=>({codigo:x.codigo,descricao:x.descricao,data:x.data,quantidade:x.qtd,valorUnitario:x.vun,unidade:x.um,moeda:'R$',fornecedor:x.fornecedor||''}));
+      this.cacheNome.set(k,regs);
+    }
+    if(regs.length)return C.refPorNome(regs,{un:it.un,servico:serv,palavras,amplo:i>0});
+  }
+  return{valor:null,n:0,porNome:true,motivo:'Nenhuma compra com este nome na base.'};
 };
 window.CostsHist=Hist;
 const infoTxt=i=>!i?'':i.semTabela?'A tabela de histórico de compras ainda não existe no banco.':i.vazio?'Nenhuma compra importada ainda.':`${fmtN(i.total??i.mantidas)} compras · de ${dBR(i.periodo_ini)} a ${dBR(i.periodo_fim)} · importado em ${dBR(i.at)} por ${esc(i.by_name||'—')}`;
@@ -389,26 +414,47 @@ Object.assign(MX.act,{
   async cstNomus(){
     const {c}=cur();if(!c)return;
     if(!CLOUD||!navigator.onLine){toast('A consulta ao histórico de compras precisa de internet e da nuvem. O orçamento continua funcionando sem ela.',{ms:6000});return}
-    const its=c.data.itens.filter(i=>refSecs.includes(i.sec)&&!semCod(i.codigo));
-    if(!its.length){toast('Nenhum item com código do Nomus. Use “Vincular código” nos itens ou carregue a lista pela D.E.',{ms:6000});return}
-    const codes=[...new Set(its.map(i=>String(i.codigo).trim()))];
-    let recs={},info=null;
-    const t=toast('Consultando o histórico de compras…',{ms:120000});
-    try{info=await Hist.carregar(true);if(info&&(info.vazio||info.semTabela)){t.close();toast(info.semTabela?'A tabela de histórico de compras ainda não existe no banco.':'Ainda não há compras importadas. Um administrador/gestor importa a planilha do Nomus em “Importar histórico”.',{ms:8000});return}
-      recs=await Hist.compras(codes)}
-    catch(e){t.close();toast('Não foi possível consultar o histórico: '+(e.message||e),{ms:8000});return}
-    t.close();
-    const agora=new Date().toISOString();let com=0,sem=0;
-    for(const it of its){
-      const rr=recs[String(it.codigo).trim()]||[];
-      const ref=C.refPrice(rr,{un:it.un,servico:it.sec!=='mat'});
-      if(ref.valor==null)ref.motivo=ref.motivo||'Sem histórico de compras deste código.';
-      ref.consultadoEm=agora;ref.fonte='historico_nomus';ref.baseAte=info&&info.periodo_fim||null;
-      if(it.ref&&it.ref.valor!=null&&ref.valor!==it.ref.valor){it.refHist=[...(it.refHist||[]),{...it.ref}].slice(-10)}   // a referência anterior fica guardada
-      it.ref=ref;if(ref.valor!=null)com++;else sem++;
-    }
-    touchC(c);renderMain();
-    toast(`${com} com referência, ${sem} sem histórico utilizável. Nada foi aplicado: use “Usar referência” em cada item.`,{ms:9000});
+    const its=c.data.itens.filter(i=>refSecs.includes(i.sec)&&!emp(i.desc)&&!(i.origem&&i.origem.tipo==='padrao'&&C.linha(i).estado==='vazio'));   // linhas padrão em branco ficam de fora
+    if(!its.length){toast('Não há itens com quantidade ou preço para consultar.');return}
+    const t=toast('Consultando o histórico de compras…',{ms:180000});
+    let info=null,porCod={};
+    try{
+      info=await Hist.carregar(true);
+      if(info&&(info.vazio||info.semTabela)){t.close();toast(info.semTabela?'A tabela de histórico de compras ainda não existe no banco.':'Ainda não há compras importadas. Um administrador/gestor importa a planilha do Nomus em “Importar histórico”.',{ms:8000});return}
+      const codes=[...new Set(its.filter(i=>!semCod(i.codigo)).map(i=>String(i.codigo).trim()))];
+      if(codes.length)porCod=await Hist.compras(codes);
+      const agora=new Date().toISOString();let cod=0,nome=0,sem=0;
+      for(const it of its){
+        let ref=null;
+        if(!semCod(it.codigo)){
+          const rr=porCod[String(it.codigo).trim()]||[];
+          if(rr.length){ref=C.refPrice(rr,{un:it.un,servico:it.sec!=='mat'});if(ref.valor!=null)cod++}
+        }
+        if(!ref||ref.valor==null){   // sem código (ou sem compras do código): procura pelo nome
+          const rn=await Hist.porNome(it);
+          if(rn.valor!=null||!ref)ref=rn;
+          if(ref.valor!=null)nome++;
+        }
+        if(ref.valor==null){sem++;ref.motivo=ref.motivo||'Sem histórico de compras deste item.'}
+        ref.consultadoEm=agora;ref.fonte='historico_nomus';ref.baseAte=info&&info.periodo_fim||null;
+        if(it.ref&&it.ref.valor!=null&&ref.valor!==it.ref.valor){it.refHist=[...(it.refHist||[]),{...it.ref}].slice(-10)}   // a referência anterior fica guardada
+        it.ref=ref;
+      }
+      t.close();touchC(c);renderMain();
+      toast(`${cod} por código, ${nome} estimado${nome===1?'':'s'} pelo nome, ${sem} sem histórico. Nada foi aplicado: use “Usar referência” em cada item (ou “Ver itens parecidos” para escolher o item certo).`,{ms:10000});
+    }catch(e){t.close();console.error(e);toast('Não foi possível consultar o histórico: '+(e.message||e),{ms:8000})}
+  },
+  cstCands(el){
+    const {c}=cur();if(!c)return;const it=findIt(c,el.dataset.id);if(!it||!it.ref||!it.ref.candidatos)return;
+    const li=it.ref.candidatos.map((x,i)=>`<div class="cst-mp"><div><b>${esc(x.codigo)}</b> ${esc(x.descricao)}<br><small class="muted">${brlP(x.ref.valor)} por ${esc(x.ref.un||it.un)} · ${x.ref.n} ${x.ref.n===1?'compra':'compras'} · última ${dBR(x.ref.ultimaCompra)} · confiança ${esc(x.ref.confianca)}</small></div><button type="button" class="btn" data-act="cstCandPick" data-id="${esc(it.id)}" data-i="${i}">É este</button></div>`).join('');
+    dialog(`<div class="dlg-body cst-dlg"><h2>Itens parecidos comprados</h2><p>“${esc(it.desc)}” — escolha o item exato para vincular o código e usar o preço dele (em vez da mediana de todos).</p><div class="cst-list">${li}</div><div class="actions end"><button type="button" class="btn" data-act="closeDlg">Fechar</button></div></div>`);
+  },
+  cstCandPick(el){
+    const {c}=cur();if(!c)return;const it=findIt(c,el.dataset.id);if(!it||!it.ref||!it.ref.candidatos)return;
+    const x=it.ref.candidatos[+el.dataset.i];if(!x)return;
+    it.refHist=[...(it.refHist||[]),{...it.ref,candidatos:undefined}].slice(-10);
+    it.codigo=x.codigo;it.ref={...x.ref,consultadoEm:new Date().toISOString(),fonte:'historico_nomus'};
+    touchC(c);renderMain();closeDialog(el.closest('dialog'));toast('Código vinculado. Use “Usar referência” para aplicar o preço.');
   },
   /* ---- serviços: vincular o código escolhendo no histórico de compras ---- */
   cstSrvVinc(el){

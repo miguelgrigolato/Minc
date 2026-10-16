@@ -79,6 +79,7 @@ const normUn=u=>{
   if(/^(METRO|METROS|MT|M)$/.test(t))return 'M';
   if(/^(MILIMETRO|MILIMETROS|MM)$/.test(t))return 'MM';
   if(/^(METROQUADRADO|M2)$/.test(t))return 'M2';
+  if(/^(GL|GALAO|GALOES)$/.test(t))return 'GL';
   if(/^(HORA|HORAS|H|HR)$/.test(t))return 'H';
   return t;
 };
@@ -123,6 +124,45 @@ function refPrice(registros,{un='',hoje=new Date(),janela=12,maxJanela=36,servic
     confianca,antigo,excluidos:exc,un:un||'',
     servico,metodo:`${servico?'serviço (o preço varia com o escopo): ':''}média ponderada pela quantidade comprada, ${antigo?`compras de até ${maxJanela} meses (nenhuma nos últimos ${janela})`:`compras dos últimos ${janela} meses`}`
   };
+}
+
+
+/* ---------- referência pelo NOME do item (quando não há código do Nomus) ---------- */
+const STOP=new Set('de da do das dos para com e em a o as os um uma no na nos nas por sem ao conjunto kit jogo peca pecas novo nova tipo completo servico servicos'.split(' '));
+const stem=w=>w.length>3&&w.endsWith('s')&&!w.endsWith('ss')?w.slice(0,-1):w;
+/* palavras que valem na busca: sem acento, sem artigos, no singular */
+function tokensNome(desc){
+  return [...new Set(fold(desc).toLowerCase().replace(/[^a-z0-9]+/g,' ').split(' ').filter(w=>w&&!STOP.has(w)&&(w.length>1||/\d/.test(w))).map(stem))];
+}
+/* níveis de busca, do mais exato ao mais amplo: todas as palavras (até 4); depois tirando as mais curtas, mas nunca menos que 2 palavras (ou 1, se o item só tem 1) */
+function niveisBusca(desc,minimo=2){
+  const t=tokensNome(desc).sort((a,b)=>b.length-a.length).slice(0,4);
+  const out=[],min=Math.min(minimo,t.length);
+  for(let n=t.length;n>=min;n--)out.push(t.slice(0,n));
+  return out;
+}
+/* registros: linhas do histórico {codigo,descricao,data,quantidade,valorUnitario,unidade,...}. Agrupa por código, calcula a referência de cada um e
+   usa a MEDIANA dos preços por código (itens parecidos têm tamanhos diferentes: uma média simples seria enganosa). */
+function refPorNome(registros,{un='',servico=false,hoje=new Date(),palavras=[],amplo=false}={}){
+  const por={};for(const r of registros||[])(por[r.codigo]=por[r.codigo]||[]).push(r);
+  const cands=[];
+  for(const [cod,l] of Object.entries(por)){
+    const rp=refPrice(l,{un,hoje,servico});
+    if(rp.valor!=null)cands.push({codigo:cod,descricao:l[0].descricao||'',ref:rp});
+  }
+  if(!cands.length){
+    const unidades=[...new Set((registros||[]).map(r=>r.unidade).filter(Boolean))].slice(0,3).join(', ');
+    return{valor:null,n:0,porNome:true,motivo:registros&&registros.length?(unidades&&un&&!registros.some(r=>normUn(r.unidade)===normUn(un))?`Há compras parecidas, mas em outra unidade (${unidades}); este item está em ${un}.`:'Compras parecidas encontradas, mas nenhuma utilizável (muito antigas ou com dados incompletos).'):'Nenhuma compra com este nome na base.'};
+  }
+  cands.sort((a,b)=>b.ref.n-a.ref.n||b.ref.ultimaCompra.localeCompare(a.ref.ultimaCompra));
+  const v=cands.map(c=>c.ref.valor),valor=Number(mediana(v).toFixed(4));
+  const n=cands.reduce((s,c)=>s+c.ref.n,0),ult=cands.map(c=>c.ref.ultimaCompra).sort().pop();
+  const antigo=cands.every(c=>c.ref.antigo);
+  const um=cands.length===1;   // um único código parecido: é praticamente o item; vários: é uma estimativa pelo nome
+  return{valor,n,ultimaCompra:ult,min:Math.min(...v),max:Math.max(...v),porNome:true,codigos:cands.length,palavras,amplo,antigo,servico,un,
+    confianca:antigo||amplo||(!um&&cands.length>6)?'baixa':'média',
+    metodo:um?'um único item com esse nome na base':`mediana dos preços de ${cands.length} itens parecidos (cada um pela média ponderada de suas compras)`,
+    candidatos:cands.slice(0,8).map(c=>({codigo:c.codigo,descricao:c.descricao,ref:c.ref})),excluidos:{}};
 }
 
 /* ---------- importação da lista de materiais sem duplicar nem sobrescrever ---------- */
@@ -199,7 +239,7 @@ function limparCompras(linhas){
 }
 const chaveCompra=l=>[l.codigo,l.data.toISOString().slice(0,16),l.fornecedor,l.qtd,l.vtot].join('|');
 /* linha pronta para a tabela purchase_history (o preço unitário gravado é total ÷ quantidade) */
-const paraBanco=l=>({chave:chaveCompra(l),codigo:l.codigo,descricao:l.descricao,familia:l.familia||null,tipo:l.tipo||null,tipo_item:ehServico(l)?'servico':'material',um:l.um,qtd:l.qtd,vtot:l.vtot,vun:Number((l.vtot/l.qtd).toFixed(6)),data:l.data.toISOString(),fornecedor:l.fornecedor||null,movimentacao:l.mov||null});
+const paraBanco=l=>({chave:chaveCompra(l),codigo:l.codigo,descricao:l.descricao,busca:fold(l.descricao).toLowerCase().replace(/[^a-z0-9]+/g,' ').trim(),familia:l.familia||null,tipo:l.tipo||null,tipo_item:ehServico(l)?'servico':'material',um:l.um,qtd:l.qtd,vtot:l.vtot,vun:Number((l.vtot/l.qtd).toFixed(6)),data:l.data.toISOString(),fornecedor:l.fornecedor||null,movimentacao:l.mov||null});
 
 /* ---------- listas padrão (da planilha de custos real do RTS 1183-26) ---------- */
 const CATALOGO=[
@@ -243,7 +283,7 @@ function orcamentoInicial(padrao){
   return{versao:1,itens:[...mat,...mo,...out,...srv],solicitante:'',respEngenharia:'',respProjeto:'',prazoDias:'',comentarios:''};
 }
 
-const api={lerPlanilhaCompras,limparCompras,paraBanco,chaveCompra,ehServico,SECS,UNIDADES,parseNum,dec,cents,linha,resumo,refPrice,normUn,planoImportacao,snapOf,nz,CATALOGO,catalogoPlano,BASE_MAT,HH,OUT,SRV,itemNovo,orcamentoInicial,novoId};
+const api={tokensNome,niveisBusca,refPorNome,lerPlanilhaCompras,limparCompras,paraBanco,chaveCompra,ehServico,SECS,UNIDADES,parseNum,dec,cents,linha,resumo,refPrice,normUn,planoImportacao,snapOf,nz,CATALOGO,catalogoPlano,BASE_MAT,HH,OUT,SRV,itemNovo,orcamentoInicial,novoId};
 root.CustosCalc=api;
 if(typeof module!=='undefined'&&module.exports)module.exports=api;
 })(typeof window!=='undefined'?window:globalThis);

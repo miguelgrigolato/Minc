@@ -268,7 +268,7 @@ ul.hist li span{color:var(--muted);font-size:14px}
 .cst-tag{font-size:11px;font-weight:700;padding:2px 7px;border-radius:999px;border:1px solid var(--line)}
 .cst-tag.est{background:color-mix(in srgb,var(--warn) 25%,transparent);border-color:var(--warn)}
 .cst-tag.inf{background:color-mix(in srgb,var(--ok) 18%,transparent);border-color:var(--ok)}
-.cst-refw{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:12.5px}
+.cst-refw{display:flex;flex-wrap:wrap;gap:6px 8px;align-items:center;font-size:12.5px;flex:1 1 100%}.cst-refw:empty{display:none}
 .cst-ref{color:var(--muted)}.cst-ref b{color:var(--text)}.cst-ref.old{color:var(--warn-text)}.cst-ref.none{font-style:italic}
 .cst-dlg .cst-list{max-height:46vh;overflow:auto;border:1px solid var(--line);padding:6px 10px;margin:10px 0}
 .cst-grp{border:0;padding:0;margin:0 0 8px}.cst-grp legend{font-weight:700;font-size:13px;padding:4px 0}

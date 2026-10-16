@@ -61,4 +61,17 @@ t('leitura da planilha: cabeçalho do Nomus e hora preservada',()=>{
   const r=C.lerPlanilhaCompras([h,['Documento de entrada','07.15.5.23','TRAPO','MAT','Material de uso e consumo','Compra','QUILOGRAMA',80,792,9.9,'x','FORN','2025-09-30 13:49:02','2025-09-30 13:45:30','30 dias']]);
   assert.strictEqual(r.linhas.length,1);assert.strictEqual(r.linhas[0].data.toISOString(),'2025-09-30T13:45:30.000Z');assert.strictEqual(r.linhas[0].qtd,80);
   assert.ok(C.lerPlanilhaCompras([['a','b'],[1,2]]).erro)});
+t('nome: palavras da busca (sem artigo, no singular, sem acento) e níveis',()=>{
+  assert.deepStrictEqual(C.tokensNome('JUNTA DA VEDAÇÃO DO DISCO').sort(),['disco','junta','vedacao']);
+  assert.deepStrictEqual(C.niveisBusca('TINTAS E SOLVENTES'),[['solvente','tinta']]);
+  assert.deepStrictEqual(C.niveisBusca('CONJUNTO DE GAXETAS'),[['gaxeta']]);
+  assert.strictEqual(C.niveisBusca('JUNTA DA VEDAÇÃO DO DISCO').length,2);
+  assert.ok(C.niveisBusca('USINAGEM - SERVIÇO EXTERNO',1).some(n=>n.length===1))});
+t('nome: mediana dos preços por item parecido; unidade incompatível não vira preço',()=>{
+  const r=(cod,v,q,un='UNIDADE',d='2026-08-01')=>({codigo:cod,descricao:'ITEM '+cod,data:d,quantidade:q,valorUnitario:v,unidade:un,moeda:'R$'});
+  const a=C.refPorNome([r('A',10,5),r('A',12,5),r('B',100,1),r('C',50,1)],{un:'PÇ',hoje});
+  assert.strictEqual(a.valor,50);assert.strictEqual(a.codigos,3);assert.strictEqual(a.min,11);assert.strictEqual(a.max,100);assert.ok(a.candidatos.length===3&&a.porNome);
+  const b=C.refPorNome([r('A',10,5,'LITRO')],{un:'PÇ',hoje});assert.strictEqual(b.valor,null);assert.ok(/outra unidade/.test(b.motivo));
+  const c0=C.refPorNome([],{un:'PÇ',hoje});assert.strictEqual(c0.valor,null);
+  const u=C.refPorNome([r('A',10,5)],{un:'PÇ',hoje});assert.strictEqual(u.confianca,'média');assert.strictEqual(u.codigos,1)});
 console.log(n+' testes ok');
